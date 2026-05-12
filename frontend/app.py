@@ -1,14 +1,23 @@
 import streamlit as st
 import os
 
-# Streamlit set configuration
-st.set_page_config(
-    page_title = "X.509 Certificate System",
-    page_icon = "" ,
-    layout = "wide",
-    initial_sidebar_state = "expanded"
-)
+from views.auth import auth_page
+from views.admin_dashboard import admin_dashboard
+from views.user_dashboard import user_dashboard
 
+
+
+Test_User = {
+    "adimin" : {
+        "password": "12345",
+        "role": "admin"
+    },
+
+    "user": {
+        "password" : "12345abc",
+        "role" : "user"
+    }
+}
 
 # Session state initialization
 if 'authenticated' not in st.session_state:
@@ -20,27 +29,48 @@ if 'role' not in st.session_state:
 if 'access_token' not in st.session_state:
     st.session_state.access_token = None
 
-# Custom CSS
-st.markdown("""
-<style>
-    :root {
-        --primary: #667eea;
-        --text-primary: #f1f5f9;
-        --text-secondary: #cbd5e1;
-        --background: #0f172a;
-        --surface: #1e293b;
-    }
-    
-   
-    }
-</style>
-""", unsafe_allow_html=True)
+
+# Streamlit set configuration
+st.set_page_config(
+    page_title = "X.509 Certificate System",
+    layout = "centered" if not st.session_state.authenticated else "wide"
+)
 
 
-# Main app
-st.title("X.509 Certificate System")
+# st.markdown( """
+# <style>
+#         .stApp {
+#             background-color: #55687f;
+            
+#         }  
+# </style>
+# """, unsafe_allow_html = True )
 
+
+# if not st.session_state.authenticated:
+#     st.info("Please log in to access")
+# else:
+#     st.success(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
+
+
+def sidebar():
+    st.sidebar.write(f"User: {st.session_state.username}")
+    st.sidebar.write(f"Role: {st.session_state.role}")
+
+    if st.sidebar.button("logout"):
+        st.session_state.authenticated = False
+        st.session_state.username = None
+        st.session_state.role = None
+        st.rerun()
+
+# ___________ Routing _____________________
 if not st.session_state.authenticated:
-    st.info("Please log in to access")
+    auth_page(Test_User)
 else:
-    st.success(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
+    
+    sidebar()
+    if st.session_state.role == "admin":
+        admin_dashboard()
+
+    elif st.session_state.role == "user":
+        user_dashboard()

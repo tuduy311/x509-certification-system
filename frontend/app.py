@@ -21,11 +21,11 @@ Test_User = {
 
 # Session state initialization
 if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = False
+    st.session_state.authenticated = True
 if 'username' not in st.session_state:
-    st.session_state.username = None
+    st.session_state.username = "Tu Duy"
 if 'role' not in st.session_state:
-    st.session_state.role = None
+    st.session_state.role = "admin"
 if 'access_token' not in st.session_state:
     st.session_state.access_token = None
 
@@ -42,6 +42,8 @@ st.markdown( """
 <style>
     .stApp {
       #  background: linear-gradient(135deg, #0B1020 0%, #0F172A 50%, #1a1f3a 100%) !important;
+        background : rgb(21, 33, 51) !important;
+
         background-attachment: fixed !important;
     }
             
@@ -55,7 +57,7 @@ st.markdown( """
 
     /* Sidebar styling */
     [data-testid="stSidebar"] {
-        background: rgba(15, 23, 42, 0.9) !important;
+        background: rgb(7, 18, 50, 0.8) !important;
         border-right: 1px solid rgba(56, 189, 248, 0.15) !important;
         backdrop-filter: blur(10px) !important;
     }
@@ -89,7 +91,7 @@ st.markdown( """
         background: linear-gradient(135deg, #22D3EE 0%, #06B6D4 100%) !important;
         box-shadow: 0 12px 30px rgba(56, 189, 248, 0.35) !important;
         transform: translateY(-2px) !important;
-    }
+    }s
 
     /* Tabs */
     [data-testid="stTabs"] {

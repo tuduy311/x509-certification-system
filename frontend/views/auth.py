@@ -7,8 +7,12 @@ AUTH_CSS = """
 
 /* ── Auth Panel Wrappers ── */
 .auth-left-panel {
-    background: rgba(79, 70, 229, 1);
-    border-radius: 14px 0 0 14px;
+    background: #0f1a33;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    #border: 2px solid rgba(102, 126, 234, 0.5);
+
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.1);    
     padding: 40px 32px;
     min-height: 560px;
     display: flex;
@@ -44,7 +48,7 @@ AUTH_CSS = """
 }
 
 .auth-panel-subtitle {
-    font-size: 13px;
+    font-size: 15px;
     color: rgba(199,210,254,0.85);
     line-height: 1.6;
 }
@@ -65,7 +69,7 @@ AUTH_CSS = """
 }
 
 .auth-panel-status-text {
-    font-size: 11px;
+    font-size: 12px;
     color: rgba(199,210,254,0.7);
     font-weight: 500;
 }
@@ -73,7 +77,7 @@ AUTH_CSS = """
 .auth-panel-features {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 }
 
 .auth-panel-feature {
@@ -95,14 +99,7 @@ AUTH_CSS = """
     color: rgba(199,210,254,0.85);
 }
 
-.auth-right-panel-bg {
-    background: #f8faff !important;
-    border-radius: 0 14px 14px 0 !important;
-    border: 0.5px solid rgba(99,102,241,0.12) !important;
-    padding: 40px 32px !important;
-    min-height: 560px !important;
-}
- 
+
 /* ── Inputs ── */
 .stTextInput input {
     background: #ffffff !important;
@@ -138,10 +135,21 @@ AUTH_CSS = """
 }
 
 div[data-testid="column"]:nth-of-type(3) {
-    background: #0f1a33;
-    border-radius: 16px;
-    padding: 50px;
+    background: #0f1a33 !important;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 16px !important;
+    padding: 50px !important;s
 }
+
+div[data-testid="column"]:nth-of-type(3) 
+div[data-testid="column"]:nth-of-type(1) .stButton > button,
+div[data-testid="column"]:nth-of-type(3) 
+div[data-testid="column"]:nth-of-type(2) .stButton > button {
+    background: #405b96 !important;
+}
+
+
+
 
 </style>
 """
@@ -151,7 +159,7 @@ LEFT_PANEL = """
 <div class="auth-left-panel">
     <div>
         <div class="auth-panel-logo">🔐</div>
-        <div class="auth-panel-title">X.509 System</div>
+        <div class="auth-panel-title">X.509 Certificate System</div>
         <div class="auth-panel-subtitle">Hệ thống cấp phát<br>chứng chỉ số an toàn</div>
     </div>
     <div>
@@ -178,11 +186,6 @@ LEFT_PANEL = """
 """
  
 
-def tab_key(name):
-    #Trả về key button dựa trên tab đang active
-    active = st.session_state.get("auth_tab", "login")
-    return f"tab_{name}_active" if active == name else f"tab_{name}"
-
 def auth_page(users):
 
     if 'auth_tab' not in st.session_state:
@@ -193,7 +196,7 @@ def auth_page(users):
 
     with st.container():
 
-        _, left_col, right_col, _ = st.columns([1, 2, 2, 1])
+        _, left_col, right_col, _ = st.columns([1, 1.5, 1.6, 1])
 
         with left_col:
             st.markdown(LEFT_PANEL, unsafe_allow_html=True)
@@ -218,12 +221,12 @@ def auth_page(users):
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("Login", key=tab_key("login")):
+                if st.button("Login", use_container_width = True):
                     st.session_state.auth_tab = "login"
                     st.rerun()
 
             with col2:
-                if st.button("Register", key=tab_key("register")):
+                if st.button("Register", use_container_width = True):
                     st.session_state.auth_tab = "register"
                     st.rerun()
 
@@ -234,15 +237,13 @@ def auth_page(users):
 
                 username = st.text_input(
                     "Username",
-                    placeholder="Ten_dang_nhap",
-                    key="login_user"
+                    placeholder="Ten_dang_nhap"
                 )
 
                 password = st.text_input(
                     "Password",
                     placeholder="••••••••",
                     type="password",
-                    key="login_pass"
                 )
 
                 st.markdown(
@@ -252,7 +253,6 @@ def auth_page(users):
 
                 if st.button(
                     "Đăng nhập →",
-                    key="btn_submit",
                     use_container_width=True
                 ):
 
@@ -286,31 +286,28 @@ def auth_page(users):
                 new_username = st.text_input(
                     "Username",
                     placeholder="Ten_dang_nhap",
-                    key="reg_user"
                 )
 
                 new_password = st.text_input(
                     "Password",
                     placeholder="••••••••",
                     type="password",
-                    key="reg_pass"
                 )
 
                 confirm_password = st.text_input(
                     "Confirm Password",
                     placeholder="••••••••",
                     type="password",
-                    key="reg_confirm_pass"
                 )
 
                 role = st.selectbox(
                     "Role",
-                    ["user"], key="reg_role"
+                    ["user"]
                 )
 
                 st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-                if st.button("Tạo tài khoản →", key="btn_submit", use_container_width=True
+                if st.button("Tạo tài khoản →", use_container_width=True
                 ):
 
                     if not new_username or not new_password:

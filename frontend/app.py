@@ -58,22 +58,25 @@ st.markdown( """
     /* Sidebar styling */
     [data-testid="stSidebar"] {
         background: rgb(7, 18, 50, 0.8) !important;
-        border-right: 1px solid rgba(56, 189, 248, 0.15) !important;
         backdrop-filter: blur(10px) !important;
+      
     }
 
     /* Sidebar text */
     [data-testid="stSidebar"] > div > div > div {
         color: #CBD5E1 !important;
     }
+            
 
     /* Main content */
     .main {
         background: transparent !important;
     }
 
-    p, span, div, label {
-        color: #CBD5E1 !important;
+    span, div, label {
+        #color: #CBD5E1 !important;
+        color: #e1e6ed !important;
+        
     }
 
     /* Primary CTA Buttons */

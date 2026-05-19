@@ -1,7 +1,18 @@
 # X509 Certificate System Frontend (Streamlit)
 
+Ứng dụng quản lí chứng chỉ số X.509 được xây dựng với **Streamlit** và phthon
 
-## Setup
+## Tính năng
+
+- **Xác thực**: Login/Register với validation
+- **User Dashboard**: Trang quản lý cho người dùng
+- **Admin Dashboard**: Trang quản lý cho quản trị viên
+
+# Yêu cầu 
+- python
+- pip
+
+## Cài đặt
 
 ### 1. Create virtual environment
 ```bash
@@ -33,3 +44,18 @@ API_URL=http://localhost:8000/api
 streamlit run app.py
 ```
 App will open at `http://localhost:8501`
+
+## Cấu trúc dự án
+
+```
+frontend/
+|__ app.py
+|__ requirements.txt
+|__ views/
+|    |__ auth.py
+|    |__ admin_dashborad
+|    |__ user_dashboard
+|
+|__ README.md
+
+```

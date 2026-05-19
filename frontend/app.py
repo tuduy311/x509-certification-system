@@ -25,7 +25,7 @@ if 'authenticated' not in st.session_state:
 if 'username' not in st.session_state:
     st.session_state.username = "Tu Duy"
 if 'role' not in st.session_state:
-    st.session_state.role = "admin"
+    st.session_state.role = "user"
 if 'access_token' not in st.session_state:
     st.session_state.access_token = None
 

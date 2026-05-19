@@ -179,7 +179,7 @@ def admin_dashboard():
                 <div class="admin-content">Revoke active certificates immediately.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Manage Revocations", use_container_width=True, key="revoke_certs")
+            st.button("Manage Revocations", use_container_width=True)
             
             st.markdown("""
             <div class="admin-card">
@@ -187,7 +187,7 @@ def admin_dashboard():
                 <div class="admin-content">View and manage all issued certificates.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("View All Certificates", use_container_width=True, key="manage_issued")
+            st.button("View All Certificates", use_container_width=True)
             
             st.markdown("""
             <div class="admin-card">
@@ -195,7 +195,7 @@ def admin_dashboard():
                 <div class="admin-content">Review pending certificate revocation requests.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Review Requests", use_container_width=True, key="review_revocation")
+            st.button("Review Requests", use_container_width=True)
 
         st.markdown("---")
         st.subheader("Certificate Revocation List (CRL)")
@@ -205,7 +205,7 @@ def admin_dashboard():
             <div class="admin-content">Generate and publish new Certificate Revocation List.</div>
         </div>
         """, unsafe_allow_html=True)
-        st.button("Update Revocation List", use_container_width=True, key="update_crl")
+        st.button("Update Revocation List", use_container_width=True)
     #__________________ tab2 ____________________
     with tab2:
         st.subheader("System Configuration")

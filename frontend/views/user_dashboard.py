@@ -1,25 +1,10 @@
 import streamlit as st
-from views.admin_dashboard import Admin_Dashboard_CSS
+from styles.dashboard import Dashboard_CSS
 
-User_Dashboard_CSS = """
-<style>
-    .user-badge {
-        display: inline-block;
-        background: rgba(34, 197, 94, 0.1);
-        border: 1px solid #22c55e;
-        color: #86efac;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-
-</style>
-"""
 
 def user_dashboard():
-    st.markdown(Admin_Dashboard_CSS, unsafe_allow_html = True)
-    st.markdown(User_Dashboard_CSS, unsafe_allow_html = True)
+    st.markdown(Dashboard_CSS, unsafe_allow_html = True)
+    
     st.markdown(f"""<div class='admin-header'> 
                 <div class='admin-title'>📋 User Dashboard </div>
                 <div>

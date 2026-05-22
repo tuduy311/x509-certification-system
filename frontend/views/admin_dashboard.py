@@ -1,6 +1,9 @@
 import streamlit as st
 
 from styles.dashboard import Dashboard_CSS
+from views.admin_features.activity_logs import activity_logs
+
+
 
 
 def admin_dashboard():
@@ -32,7 +35,9 @@ def admin_dashboard():
                 <div class="admin-content"> Approve pending certificate signing requests from users. </div>
             </div>
             """, unsafe_allow_html = True)
-            st.button("View Requests", use_container_width=True)
+            if st.button("View Requests", use_container_width=True):
+                st.session_state.current_feature = "approve_requests"
+                st.rerun()
 
             st.markdown("""
             <div class="admin-card"> 
@@ -40,7 +45,9 @@ def admin_dashboard():
                 <div class="admin-content"> Reject certificate signing requests with reason. </div>
             </div>
             """, unsafe_allow_html = True)
-            st.button("Review & Reject", use_container_width=True)
+            if st.button("Review & Reject", use_container_width=True):
+                st.session_state.current_feature = "reject_requests"
+                st.rerun()
 
             st.markdown("""
             <div class="admin-card"> 
@@ -48,7 +55,9 @@ def admin_dashboard():
                 <div class="admin-content"> Renew expiring certificates for users. </div>
             </div>
             """, unsafe_allow_html = True)
-            st.button("Renew Certificate", use_container_width=True)
+            if st.button("Renew Certificate", use_container_width=True):
+                st.session_state.current_feature = "renew_certificates"
+                st.rerun()
 
         with col2:
             st.markdown("""
@@ -57,7 +66,9 @@ def admin_dashboard():
                 <div class="admin-content">Revoke active certificates immediately.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Manage Revocations", use_container_width=True)
+            if st.button("Manage Revocations", use_container_width=True):
+                st.session_state.current_feature = "revoke_certificate"
+                st.rerun()
             
             st.markdown("""
             <div class="admin-card">
@@ -65,7 +76,9 @@ def admin_dashboard():
                 <div class="admin-content">View and manage all issued certificates.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("View All Certificates", use_container_width=True)
+            if st.button("View All Certificates", use_container_width=True):
+                st.session_state.current_feature = "issued_certificates"
+                st.rerun()
             
             st.markdown("""
             <div class="admin-card">
@@ -73,7 +86,9 @@ def admin_dashboard():
                 <div class="admin-content">Review pending certificate revocation requests.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Review Requests", use_container_width=True)
+            if st.button("Review Requests", use_container_width=True):
+                st.session_state.current_feature = "revocation_requests"
+                st.rerun()
 
         st.markdown("---")
         st.subheader("Certificate Revocation List (CRL)")
@@ -83,7 +98,9 @@ def admin_dashboard():
             <div class="admin-content">Generate and publish new Certificate Revocation List.</div>
         </div>
         """, unsafe_allow_html=True)
-        st.button("Update Revocation List", use_container_width=True)
+        if st.button("Update Revocation List", use_container_width=True):
+            st.session_state.current_feature = "update_crl"
+            st.rerun()
     #__________________ tab2 ____________________
     with tab2:
         st.subheader("System Configuration")
@@ -97,7 +114,9 @@ def admin_dashboard():
                 <div class ="admin-content"> Generate RSA/ECC root private and public key pair </div>
             </div>
             """, unsafe_allow_html = True)
-            st.button("Generate Key Pair", use_container_width = True)
+            if st.button("Generate Key Pair", use_container_width = True):
+                st.session_state.current_feature = "generate_root_key_pair"
+                st.rerun()
 
             st.markdown("""
             <div class="admin-card">
@@ -105,7 +124,9 @@ def admin_dashboard():
                 <div class="admin-content">Create self-signed root CA certificate.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Generate Certificate", use_container_width=True)
+            if st.button("Generate Certificate", use_container_width=True):
+                st.session_state.current_feature = "generate_root_certificate"
+                st.rerun()
     
         with col2:
             st.markdown("""
@@ -114,7 +135,9 @@ def admin_dashboard():
                 <div class="admin-content"> Update administrator account password. </div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Change Password", use_container_width=True)
+            if st.button("Change Password", use_container_width=True):
+                st.session_state.current_feature = "change_password"
+                st.rerun()
               
             st.markdown("""
             <div class="admin-card">
@@ -122,44 +145,14 @@ def admin_dashboard():
                 <div class="admin-content"> Configure default certificate parameters.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Configure Standards", use_container_width=True)
-                
-        st.markdown("---")
-        st.subheader("Default Security Configuration")
-        
-        algorithm = st.selectbox("Asymmetric Algorithm", ["RSA", "ECC"], key="asymmetric_algo")
-        hash_algorithm = st.selectbox("Hash Algorithm", ["SHA256", "SHA384", "SHA512"], key="hash_algo")
-        key_length = st.selectbox("Key Length", [2048, 3072, 4096], key="key_len")
-        validity = st.selectbox("Default Certificate Validity", ["1 Year", "2 Years", "5 Years"], key="cert_validity")
-        
-        if st.button("💾 Save Configuration", use_container_width=True):
-            st.success("✅ Configuration saved successfully!")
+            if st.button("Configure Standards", use_container_width=True):
+                st.session_state.current_feature = "certificate_standards"
+                st.rerun()
 
     #__________________ tab3 ____________________
     with tab3:
         st.subheader("System logs")
-
-        st.markdown("""
-        <div class="admin-card">
-            <div class="admin-title">📊 Activity Monitoring</div>
-            <div class="admin-content"> Monitor important system activities and security events.</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-        log_data = [
-            {"Time": "2026-05-17 10:00", "User": "admin", "Action": "Generated Root Certificate"},
-            {"Time": "2026-05-17 10:30", "User": "admin", "Action": "Approved Certificate Request"},
-            {"Time": "2026-05-17 11:00", "User": "admin", "Action": "Revoked Certificate"}
-        ]
-        st.dataframe(log_data, use_container_width=True)
-    
-        st.markdown("""
-        <div class="admin-card">
-            <div class="admin-title">📥 Export Logs</div>
-            <div class="admin-content">Download system logs for backup or audit purposes.</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.button("Export Logs", use_container_width=True)
+        activity_logs()
             
     st.markdown("---")
 

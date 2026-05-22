@@ -76,5 +76,31 @@ Global_CSS = """
         border-radius: 8px !important;
     }
 
+    /* Select box */
+    div[data-baseweb="select"] > div {
+        border: 1px solid #334155;
+        min-height: 45px;
+        background-color: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    /* Option */
+    li[role="option"] {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    /* Text bên trong option */
+    li[role="option"] * {
+        color: black !important;
+    }
+
+    /* Hover option */
+    li[role="option"]:hover {
+        background-color: #d2d3db;
+    }
+
+    div[data-baseweb="select"] * {
+        color: black !important;
+    }
+
 </style>
 """

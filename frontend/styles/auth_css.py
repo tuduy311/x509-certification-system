@@ -117,46 +117,8 @@ AUTH_CSS = """
     font-weight: 500 !important;
     color: #6b7280 !important;
 }
- 
-# /* ── Selectbox ── */
-# [data-testid="stSelectbox"] > div > div {
-#     background: #ffffff !important;
-#     border: 0.5px solid #e5e7eb !important;
-#     border-radius: 8px !important;
-#     color: #374151 !important;
-#     font-size: 14px !important;
-# }
-# [data-testid="stSelectbox"] label {
-#     font-size: 12px !important;
-#     font-weight: 500 !important;
-#     color: #6b7280 !important;
-# }
 
-/* Select box */
-div[data-baseweb="select"] > div {
-    border: 1px solid #334155;
-    min-height: 45px;
-    background-color: rgba(255, 255, 255, 0.9) !important;
-}
 
-/* Option */
-li[role="option"] {
-    background-color: rgba(255, 255, 255, 0.9) !important;
-}
-
-/* Text bên trong option */
-li[role="option"] * {
-    color: black !important;
-}
-
-/* Hover option */
-li[role="option"]:hover {
-    background-color: #d2d3db;
-}
-
-div[data-baseweb="select"] * {
-    color: black !important;
-}
 
 div[data-testid="column"]:nth-of-type(3) {
     background: #0f1a33 !important;

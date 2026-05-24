@@ -1,9 +1,16 @@
 import streamlit as st
 from styles.dashboard import Dashboard_CSS
 
-
 def user_dashboard():
     st.markdown(Dashboard_CSS, unsafe_allow_html = True)
+    
+    # Back button to main login
+    if st.button("← Back to Login"):
+        st.session_state.authenticated = False
+        st.session_state.current_feature = None
+        st.rerun()
+    
+    st.divider()
     
     st.markdown(f"""<div class='admin-header'> 
                 <div class='admin-title'>📋 User Dashboard </div>
@@ -14,26 +21,32 @@ def user_dashboard():
     st.markdown("---")
 
     tab1, tab2, tab3 = st.tabs(["⚙️ Account & Keys", "📜 Certificates", "🔍 Search & CRL"])
+    
     with tab1:
         st.subheader("Account & Key Management")
 
         col1, col2 = st.columns(2)
+        
         with col1:
             st.markdown("""
             <div class="admin-card">
-                <div class="admin-title">🔑 Generate Key Pair</div>
-                <div class="admin-content">Generate a new RSA or ECC public/private key pair for certificates.</div>
+                <div class="admin-title">👤 Profile & Settings</div>
+                <div class="admin-content">Manage your account information, password, and preferences.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Generate New Keys", use_container_width=True)
+            if st.button("Manage Profile", use_container_width=True):
+                st.session_state.current_feature = "profile"
+                st.rerun()
                
             st.markdown("""
             <div class="admin-card">
-                <div class="admin-title">📥 Import Key</div>
-                <div class="admin-content">Import an existing public or private key for tracking.</div>
+                <div class="admin-title">🔑 Generate Key Pair</div>
+                <div class="admin-content">Generate RSA or ECDSA key pairs for certificate signing requests.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Import Key", use_container_width=True)
+            if st.button("Generate Keys", use_container_width=True):
+                st.session_state.current_feature = "generate_key_pair"
+                st.rerun()
                 
         with col2:
             st.markdown("""
@@ -42,20 +55,25 @@ def user_dashboard():
                 <div class="admin-content">Update your account password for security.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Change Password", use_container_width=True)
+            if st.button("Change Password", use_container_width=True):
+                st.session_state.current_feature = "profile"
+                st.rerun()
                
             st.markdown("""
             <div class="admin-card">
-                <div class="admin-title">📊 My Keys</div>
+                <div class="admin-title">📊 My Key Pairs</div>
                 <div class="admin-content">View all your generated and imported key pairs.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("View All Keys", use_container_width=True)
+            if st.button("View All Keys", use_container_width=True):
+                st.session_state.current_feature = "generate_key_pair"
+                st.rerun()
 
     with tab2:
         st.subheader("Certificate Management")
     
         col1, col2 = st.columns(2)
+        
         with col1:
             st.markdown("""
             <div class="admin-card">
@@ -63,7 +81,9 @@ def user_dashboard():
                 <div class="admin-content">Submit a Certificate Signing Request (CSR) for X.509 certificate issuance.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Request Certificate", use_container_width=True)
+            if st.button("Request Certificate", use_container_width=True):
+                st.session_state.current_feature = "request_certificate"
+                st.rerun()
                
             st.markdown("""
             <div class="admin-card">
@@ -71,7 +91,9 @@ def user_dashboard():
                 <div class="admin-content">Download your issued certificates (PEM, DER, PKCS12 formats).</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Download Certificate", use_container_width=True)
+            if st.button("Download Certificate", use_container_width=True):
+                st.session_state.current_feature = "my_certificates"
+                st.rerun()
                
         with col2:
             st.markdown("""
@@ -80,16 +102,19 @@ def user_dashboard():
                 <div class="admin-content">View all your certificate requests (pending & issued) and track their status.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("View My Certificates", use_container_width=True)
+            if st.button("View My Certificates", use_container_width=True):
+                st.session_state.current_feature = "my_certificates"
+                st.rerun()
               
-            
             st.markdown("""
             <div class="admin-card">
                 <div class="admin-title">🚫 Revoke Certificate</div>
                 <div class="admin-content">Request revocation of an issued certificate.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Revoke Certificate", use_container_width=True)
+            if st.button("Revoke Certificate", use_container_width=True):
+                st.session_state.current_feature = "revoke_certificate"
+                st.rerun()
 
         st.markdown("---")
         st.subheader("Other Certificates")
@@ -103,12 +128,15 @@ def user_dashboard():
                 <div class="admin-content">Upload and track certificates from other sources for monitoring and verification.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Upload Certificate", use_container_width=True)
+            if st.button("Upload Certificate", use_container_width=True):
+                st.session_state.current_feature = "upload_certificate"
+                st.rerun()
 
     with tab3:
         st.subheader("Certificate Search & Revocation List")
     
         col1, col2 = st.columns(2)
+        
         with col1:
             st.markdown("""
             <div class="admin-card">
@@ -116,7 +144,9 @@ def user_dashboard():
                 <div class="admin-content">Search for certificates by domain, CN, serial number or issuer.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("Search Certificates", use_container_width=True)
+            if st.button("Search Certificates", use_container_width=True):
+                st.session_state.current_feature = "search_crl"
+                st.rerun()
                 
         with col2:
             st.markdown("""
@@ -125,7 +155,9 @@ def user_dashboard():
                 <div class="admin-content">View the Certificate Revocation List (CRL) of all revoked certificates in the system.</div>
             </div>
             """, unsafe_allow_html=True)
-            st.button("View Revocation List", use_container_width=True)
+            if st.button("View Revocation List", use_container_width=True, key="btn_crl_dash"):
+                st.session_state.current_feature = "search_crl"
+                st.rerun()
                 
     # User stats
     st.markdown("---")

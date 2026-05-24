@@ -15,6 +15,16 @@ from views.admin_features.update_crl import update_crl
 from views.admin_features.issued_certificates import issued_certificates
 from views.admin_features.revocation_requests import revocation_requests
 from views.admin_features.renew_certificates import renew_certificates
+from views.user_features import (
+    request_certificate, 
+    my_certificates, 
+    profile, 
+    revoke_certificate as user_revoke_certificate, 
+    renew_certificate,
+    generate_key_pair,
+    search_crl,
+    upload_certificate
+)
 
 from styles.theme import Global_CSS
 
@@ -36,9 +46,9 @@ Test_User = {
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 if 'username' not in st.session_state:
-    st.session_state.username = "Tu Duy"
+    st.session_state.username = None
 if 'role' not in st.session_state:
-    st.session_state.role = "admin"
+    st.session_state.role = None
 if 'access_token' not in st.session_state:
     st.session_state.access_token = None
 if 'current_feature' not in st.session_state:
@@ -103,4 +113,21 @@ else:
     
     # User routing
     elif st.session_state.role == "user":
-        user_dashboard()
+        if st.session_state.current_feature == "request_certificate":
+            request_certificate()
+        elif st.session_state.current_feature == "my_certificates":
+            my_certificates()
+        elif st.session_state.current_feature == "profile":
+            profile()
+        elif st.session_state.current_feature == "revoke_certificate":
+            user_revoke_certificate()
+        elif st.session_state.current_feature == "renew_certificate":
+            renew_certificate()
+        elif st.session_state.current_feature == "generate_key_pair":
+            generate_key_pair()
+        elif st.session_state.current_feature == "search_crl":
+            search_crl()
+        elif st.session_state.current_feature == "upload_certificate":
+            upload_certificate()
+        else:
+            user_dashboard()

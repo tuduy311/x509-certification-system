@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from app.db.models import CertStatus
+from backend.app.db.models import CertStatus
 
 class CSRCreate(BaseModel):
     common_name: str

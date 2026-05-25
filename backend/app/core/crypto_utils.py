@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.x509.oid import NameOID
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-from app.core.config import settings
+from backend.app.core.config import settings
 
 ROOT_KEY_PATH = f"{settings.ROOT_CA_PATH}.key"
 ROOT_CERT_PATH = f"{settings.ROOT_CA_PATH}.crt"

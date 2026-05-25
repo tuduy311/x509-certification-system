@@ -4,10 +4,10 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from cryptography.hazmat.primitives import serialization
 
-from app.api import deps
-from app.db import models
-from app.schemas import certificate as schemas
-from app.core import crypto_utils
+from backend.app.api import deps
+from backend.app.db import models
+from backend.app.schemas import certificate as schemas
+from backend.app.core import crypto_utils
 
 router = APIRouter()
 

@@ -1,6 +1,6 @@
 from datetime import timedelta, datetime
-from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Any, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Form, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
@@ -57,9 +57,39 @@ def validate_password_strength(password: str) -> None:
             detail="Password must contain at least 1 special character (!@#$%^&*)"
         )
 
+# ─────────────────────────────────────────────
+# Helper: Support both JSON and Form (for Swagger UI /docs Authorize button)
+# ─────────────────────────────────────────────
+async def get_login_data(
+    request: Request,
+    username: Optional[str] = Form(None),
+    password: Optional[str] = Form(None)
+) -> schemas.LoginRequest:
+    """
+    Dependency to support login via both application/json (API clients/tests)
+    and application/x-www-form-urlencoded (Swagger UI Authorize button).
+    """
+    if "application/json" in request.headers.get("content-type", "").lower():
+        try:
+            body = await request.json()
+            return schemas.LoginRequest(**body)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid JSON payload"
+            )
+            
+    if username is not None and password is not None:
+        return schemas.LoginRequest(username=username, password=password)
+        
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="Login credentials must be provided as JSON or Form data"
+    )
+
 @router.post("/login", response_model=schemas.Token)
 def login_access_token(
-    form_data: schemas.LoginRequest,
+    form_data: schemas.LoginRequest = Depends(get_login_data),
     db: Session = Depends(deps.get_db)
 ) -> Any:
     """
@@ -140,6 +170,12 @@ def change_password(
         raise HTTPException(
             status_code=400,
             detail="Mật khẩu mới không được trùng với mật khẩu cũ."
+        )
+    #3. Validate new password
+    if pwd_data.new_password != pwd_data.confirm_new_password:
+        raise HTTPException(
+            status_code=400,
+            detail="Mật khẩu mới không khớp với mật khẩu xác nhận."
         )
     # Validate password strength
     validate_password_strength(pwd_data.new_password)

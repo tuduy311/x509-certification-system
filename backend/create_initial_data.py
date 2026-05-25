@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
-from app.db.database import SessionLocal
-from app.db import models
-from app.core import security
-from app.core.config import settings
-from app.db.database import engine
+from backend.app.db.database import SessionLocal
+from backend.app.db import models
+from backend.app.core import security
+from backend.app.core.config import settings
+from backend.app.db.database import engine
 
 models.Base.metadata.create_all(bind=engine)
 

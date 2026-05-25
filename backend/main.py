@@ -2,10 +2,10 @@
 from fastapi import FastAPI
 # pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.api import api_router
-from app.core.config import settings
-from app.db.database import engine
-from app.db import models
+from backend.app.api.api import api_router
+from backend.app.core.config import settings
+from backend.app.db.database import engine
+from backend.app.db import models
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)

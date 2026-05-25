@@ -8,8 +8,8 @@ import string
 from typing import Optional
 from fastapi.testclient import TestClient
 
-from main import app
-from app.core.config import settings
+from backend.main import app
+from backend.app.core.config import settings
 
 client = TestClient(app)
 
@@ -37,8 +37,16 @@ def logout(token: str):
     return client.post("/api/auth/logout", headers={"Authorization": f"Bearer {token}"})
 
 
-def change_password(token: str, new_password: str):
-    return client.put("/api/auth/change-password", headers={"Authorization": f"Bearer {token}"}, json={"new_password": new_password})
+def change_password(token: str, old_password: str, new_password: str, confirm_new_password: str):
+    return client.put(
+        "/api/auth/change-password",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "old_password": old_password,
+            "new_password": new_password,
+            "confirm_new_password": confirm_new_password
+        }
+    )
 
 
 def get_my_requests(token: str):
@@ -55,8 +63,9 @@ def test_password_strength():
         ("Weak@Pass1", True, "Valid strong password"),
     ]
 
+    random_suffix = ''.join(random.choices(string.ascii_lowercase, k=6))
     for i, (password, should_pass, reason) in enumerate(test_cases):
-        username = f"tc_pwd_{i}"
+        username = f"tc_pwd_{i}_{random_suffix}"
         res = register(username, password)
         if should_pass:
             if res.status_code == 200:
@@ -132,14 +141,14 @@ def test_change_password():
     print_result("PASS", "User logged in")
 
     # Weak password change
-    res = change_password(token, "weak")
+    res = change_password(token, password, "weak", "weak")
     if res.status_code == 400:
         print_result("PASS", "Weak password rejected on change")
     else:
         print_result("FAIL", "Weak password accepted on change")
 
     # Strong password change
-    res = change_password(token, "NewPass@456")
+    res = change_password(token, password, "NewPass@456", "NewPass@456")
     if res.status_code == 200:
         print_result("PASS", "Strong password accepted on change")
     else:

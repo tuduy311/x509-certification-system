@@ -3,13 +3,13 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from datetime import datetime
-from app.core import security
-from app.core.config import settings
-from app.db.database import SessionLocal
-from app.db import models
-from app.schemas.user import TokenData
+from backend.app.core import security
+from backend.app.core.config import settings
+from backend.app.db.database import SessionLocal
+from backend.app.db import models
+from backend.app.schemas.user import TokenData
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 def get_db():
     db = SessionLocal()

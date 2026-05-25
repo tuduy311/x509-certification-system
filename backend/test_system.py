@@ -5,8 +5,8 @@ Bao gồm tất cả yêu cầu đồ án: Nhóm Admin (A.1-A.11) và Nhóm Khá
 import random
 import string
 from fastapi.testclient import TestClient
-from main import app
-from app.core.config import settings
+from backend.main import app
+from backend.app.core.config import settings
 
 client = TestClient(app)
 
@@ -72,7 +72,11 @@ def test_full_workflow():
     # [B.3] Đổi mật khẩu (qua request body - đã sửa)
     # ────────────────────────────────────────
     print("\n[B.3] Change password (via request body, NOT query param)")
-    res = client.put("/api/auth/change-password", headers=cust_headers, json={"new_password": "NewPass@456"})
+    res = client.put("/api/auth/change-password", headers=cust_headers, json={
+        "old_password": "Customer@123",
+        "new_password": "NewPass@456",
+        "confirm_new_password": "NewPass@456"
+    })
     assert res.status_code == 200, f"FAIL: {res.text}"
     # Re-login với mật khẩu mới
     res = client.post("/api/auth/login", json={"username": cust_username, "password": "NewPass@456"})
@@ -281,8 +285,31 @@ def test_full_workflow():
     # [A.2] Admin đổi mật khẩu
     # ────────────────────────────────────────
     print("\n[A.2] Admin changes password (via request body)")
+    # Thay đổi sang mật khẩu mới trước vì không được đổi trùng với mật khẩu cũ
     res = client.put("/api/auth/change-password", headers=admin_headers,
-                     json={"new_password": settings.ADMIN_PASSWORD})  # giữ nguyên password gốc
+                     json={
+                         "old_password": settings.ADMIN_PASSWORD,
+                         "new_password": "NewAdmin@123456",
+                         "confirm_new_password": "NewAdmin@123456"
+                     })
+    assert res.status_code == 200, f"FAIL: {res.text}"
+    
+    # Đăng nhập lại với mật khẩu mới để lấy token mới
+    res = client.post("/api/auth/login", json={
+        "username": settings.ADMIN_USERNAME,
+        "password": "NewAdmin@123456"
+    })
+    assert res.status_code == 200, f"FAIL admin re-login: {res.text}"
+    new_admin_token = res.json()["access_token"]
+    new_admin_headers = {"Authorization": f"Bearer {new_admin_token}"}
+    
+    # Khôi phục mật khẩu gốc để không ảnh hưởng các lần chạy test sau
+    res = client.put("/api/auth/change-password", headers=new_admin_headers,
+                     json={
+                         "old_password": "NewAdmin@123456",
+                         "new_password": settings.ADMIN_PASSWORD,
+                         "confirm_new_password": settings.ADMIN_PASSWORD
+                     })
     assert res.status_code == 200, f"FAIL: {res.text}"
     print("  ✓ Admin password changed (restored to original)")
 

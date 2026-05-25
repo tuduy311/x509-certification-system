@@ -2,7 +2,7 @@ from sqlalchemy import Boolean, Column, Integer, String, ForeignKey, DateTime, T
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
-from app.db.database import Base
+from backend.app.db.database import Base
 
 class Role(str, enum.Enum):
     ADMIN = "admin"

@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
+from datetime import datetime
 from app.core import security
 from app.core.config import settings
 from app.db.database import SessionLocal
@@ -16,6 +17,17 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def is_token_blacklisted(db: Session, token: str) -> bool:
+    """Check if token is in blacklist and hasn't expired naturally."""
+    blacklist_entry = db.query(models.TokenBlacklist).filter(
+        models.TokenBlacklist.token == token
+    ).first()
+    if blacklist_entry:
+        # Only return True if token is still within its natural expiry time
+        # After expiry, it's invalid anyway
+        return blacklist_entry.expires_at > datetime.utcnow()
+    return False
 
 def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
@@ -35,6 +47,11 @@ def get_current_user(
         token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
+    
+    # Check if token is blacklisted (user logged out)
+    if is_token_blacklisted(db, token):
+        raise credentials_exception
+    
     user = db.query(models.User).filter(models.User.username == token_data.username).first()
     if user is None:
         raise credentials_exception

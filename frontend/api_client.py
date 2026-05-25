@@ -174,12 +174,13 @@ def get_crl() -> dict:
 # Admin endpoints
 # ─────────────────────────────────────────────────────────────────────────────
 
-def setup_root_ca(key_size: int = 2048, validity_days: int = 3650, hash_alg: str = "SHA256") -> dict:
+def setup_root_ca(algo: str = "RSA", key_size: int = 2048, validity_days: int = 3650, hash_alg: str = "SHA256") -> dict:
     """
-    POST /api/admin/setup-root-ca?key_size=...&validity_days=...&hash_alg=...
+    POST /api/admin/setup-root-ca?algo=...&key_size=...&validity_days=...&hash_alg=...
     Returns: {"msg": "Root CA generated successfully"}
     """
     return _post("/api/admin/setup-root-ca", params={
+        "algo": algo,
         "key_size": key_size,
         "validity_days": validity_days,
         "hash_alg": hash_alg

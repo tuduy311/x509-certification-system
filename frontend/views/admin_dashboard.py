@@ -1,10 +1,6 @@
 import streamlit as st
-
 from styles.dashboard import Dashboard_CSS
 from views.admin_features.activity_logs import activity_logs
-
-
-
 
 def admin_dashboard():
     st.markdown(Dashboard_CSS, unsafe_allow_html = True)
@@ -154,15 +150,15 @@ def admin_dashboard():
         st.subheader("System logs")
         activity_logs()
             
-    st.markdown("---")
+    # st.markdown("---")
 
-    # Admin stats
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total Users", 45)
-    with col2:
-        st.metric("Pending Requests", 7)
-    with col3:
-        st.metric("Active Certificates", 182)
-    with col4:
-        st.metric("System Health", "🟢 Good")
+    # # Admin stats
+    # col1, col2, col3, col4 = st.columns(4)
+    # with col1:
+    #     st.metric("Total Users", 45)
+    # with col2:
+    #     st.metric("Pending Requests", 7)
+    # with col3:
+    #     st.metric("Active Certificates", 182)
+    # with col4:
+    #     st.metric("System Health", "🟢 Good")

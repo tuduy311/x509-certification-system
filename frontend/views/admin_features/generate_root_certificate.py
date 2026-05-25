@@ -22,6 +22,26 @@ def generate_root_certificate():
     st.markdown("Create a new Root Certificate Authority (CA) certificate")
     st.divider()
 
+    # ── Fetch option lists from backend once per visit ──
+    if "asymmetric_algos" not in st.session_state or st.session_state.asymmetric_algos is None:
+        try:
+            st.session_state.asymmetric_algos = [alg["name"] for alg in api_client.get_asymmetric_algorithms()]
+        except Exception:
+            st.session_state.asymmetric_algos = ["RSA", "ECC"]
+
+    if "key_lengths" not in st.session_state or st.session_state.key_lengths is None:
+        try:
+            st.session_state.key_lengths = api_client.get_key_lengths()
+        except Exception:
+            st.session_state.key_lengths = [
+                {"value": 2048, "algo_name": "RSA"},
+                {"value": 3072, "algo_name": "RSA"},
+                {"value": 4096, "algo_name": "RSA"},
+                {"value": 256, "algo_name": "ECC"},
+                {"value": 384, "algo_name": "ECC"},
+                {"value": 521, "algo_name": "ECC"},
+            ]
+
     # Stats from session history
     col1, col2 = st.columns(2)
     with col1:
@@ -38,38 +58,42 @@ def generate_root_certificate():
         st.subheader("Generate New Root CA Certificate")
         st.markdown("Configure parameters for the new root CA certificate")
 
-        col1, col2 = st.columns(2)
 
-        with col1:
-            # Subject DN Components (for display only – backend uses settings from .env)
-            st.markdown("**Subject Distinguished Name (DN)**")
-            st.info("ℹ️ Subject DN fields (Country, Organization, etc.) are read from the server's `.env` configuration.")
+        st.markdown("**Certificate Parameters**")
 
-        with col2:
-            st.markdown("**Certificate Parameters**")
+        algorithm = st.selectbox(
+            "Asymmetric Algorithm:",
+            options=st.session_state.asymmetric_algos,
+            key="root_cert_algo"
+        )
 
-            key_size = st.selectbox(
-                "Key Size (bits):",
-                options=[2048, 3072, 4096],
-                index=0,
-                key="root_cert_key_size"
-            )
+        # Filter key sizes based on selected algorithm from DB
+        algo_key_lengths = [kl["value"] for kl in st.session_state.key_lengths if kl["algo_name"].upper() == algorithm.upper()]
+        if not algo_key_lengths:
+            algo_key_lengths = [2048, 3072, 4096] if algorithm == "RSA" else [256, 384, 521]
 
-            validity_days = st.number_input(
-                "Validity Period (days):",
-                min_value=365,
-                max_value=36500,
-                value=3650,
-                step=365,
-                key="root_cert_validity"
-            )
+        key_size = st.selectbox(
+            "Key Size (bits):",
+            options=algo_key_lengths,
+            index=0,
+            key="root_cert_key_size"
+        )
 
-            hash_algorithm = st.selectbox(
-                "Hash Algorithm:",
-                options=["SHA256", "SHA384", "SHA512"],
-                index=0,
-                key="root_cert_hash_alg"
-            )
+        validity_days = st.number_input(
+            "Validity Period (days):",
+            min_value=365,
+            max_value=36500,
+            value=3650,
+            step=365,
+            key="root_cert_validity"
+        )
+
+        hash_algorithm = st.selectbox(
+            "Hash Algorithm:",
+            options=["SHA256", "SHA384", "SHA512"],
+            index=0,
+            key="root_cert_hash_alg"
+        )
 
         st.divider()
 
@@ -79,8 +103,9 @@ def generate_root_certificate():
         <div style="font-weight: bold; color: #48bb78; margin-bottom: 10px;">✓ Certificate Configuration</div>
         <div style="color: #e0e0e0; font-size: 14px;">
         <div style="margin: 5px 0;">✅ Self-signed Root CA certificate will be created</div>
-        <div style="margin: 5px 0;">✅ Certificate will be valid for <strong>{validity_days} days</strong></div>
+        <div style="margin: 5px 0;">✅ Algorithm: <strong>{algorithm}</strong></div>
         <div style="margin: 5px 0;">✅ Key size: <strong>{key_size} bits</strong></div>
+        <div style="margin: 5px 0;">✅ Certificate will be valid for <strong>{validity_days} days</strong></div>
         <div style="margin: 5px 0;">✅ Hash algorithm: <strong>{hash_algorithm}</strong></div>
         <div style="margin: 5px 0;">✅ Private key will be securely stored on the server</div>
         </div>
@@ -101,11 +126,13 @@ def generate_root_certificate():
             with st.spinner("Generating root CA certificate and key pair on server..."):
                 try:
                     result = api_client.setup_root_ca(
+                        algo=algorithm,
                         key_size=key_size,
                         validity_days=validity_days,
                         hash_alg=hash_algorithm
                     )
                     new_cert = {
+                        "algo": algorithm,
                         "key_size": key_size,
                         "validity_days": validity_days,
                         "hash_alg": hash_algorithm,
@@ -118,6 +145,7 @@ def generate_root_certificate():
                     ✅ Root CA Certificate Generated Successfully!
 
                     **Certificate Details:**
+                    - **Asymmetric Algorithm:** {algorithm}
                     - **Key Size:** {key_size} bits
                     - **Hash Algorithm:** {hash_algorithm}
                     - **Validity:** {validity_days} days (~{validity_days/365:.1f} years)
@@ -142,7 +170,7 @@ def generate_root_certificate():
             **Security Best Practices:**
             - Root CA certificate should be highly protected
             - Store private key in HSM (Hardware Security Module)
-            - Use strong key size (minimum 2048 bits, recommended 4096)
+            - Use strong key size (minimum 2048 bits for RSA, minimum 256 bits for ECC)
             - Set appropriate validity period (10 years recommended)
             - Enable all critical extensions
 
@@ -161,9 +189,10 @@ def generate_root_certificate():
                 with st.expander(f"📜 Generation #{len(st.session_state.generated_root_certs) - idx + 1} — {cert['timestamp'].strftime('%Y-%m-%d %H:%M')}"):
                     col1, col2 = st.columns(2)
                     with col1:
+                        st.write(f"**Algorithm:** {cert['algo']}")
                         st.write(f"**Key Size:** {cert['key_size']} bits")
-                        st.write(f"**Hash Algorithm:** {cert['hash_alg']}")
                     with col2:
+                        st.write(f"**Hash Algorithm:** {cert['hash_alg']}")
                         st.write(f"**Validity:** {cert['validity_days']} days")
-                        st.write(f"**Generated:** {cert['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
+                    st.write(f"**Generated:** {cert['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
                     st.write(f"**Server response:** {cert['msg']}")

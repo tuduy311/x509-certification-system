@@ -11,8 +11,8 @@ from app.core.config import settings
 ROOT_KEY_PATH = f"{settings.ROOT_CA_PATH}.key"
 ROOT_CERT_PATH = f"{settings.ROOT_CA_PATH}.crt"
 
-def generate_key_pair(algo: str = "RSA", key_size: int = 2048):
-    algo = algo.upper()
+def generate_key_pair(algorithm: str | int = "RSA", key_size: int = 2048):
+    algo = algorithm.upper()
     if algo == "ECC":
         if key_size == 256:
             curve = ec.SECP256R1()
@@ -44,8 +44,8 @@ def get_hash_algorithm(name: str):
     else:
         return hashes.SHA256()
 
-def generate_root_ca(key_size: int = 2048, validity_days: int = 3650, hash_alg: str = "SHA256"):
-    private_key = generate_key_pair(key_size)
+def generate_root_ca(algo: str = "RSA", key_size: int = 2048, validity_days: int = 3650, hash_alg: str = "SHA256"):
+    private_key = generate_key_pair(algo, key_size)
     public_key = private_key.public_key()
     
     subject = issuer = x509.Name([

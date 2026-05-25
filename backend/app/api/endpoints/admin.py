@@ -13,6 +13,7 @@ router = APIRouter()
 
 @router.post("/setup-root-ca", response_model=dict)
 def setup_root_ca(
+    algo: str = "RSA",
     key_size: int = 2048,
     validity_days: int = 3650,
     hash_alg: str = "SHA256",
@@ -23,7 +24,7 @@ def setup_root_ca(
     Generate Root Certificate and Keys.
     """
     try:
-        crypto_utils.generate_root_ca(key_size, validity_days, hash_alg)
+        crypto_utils.generate_root_ca(algo, key_size, validity_days, hash_alg)
         return {"msg": "Root CA generated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

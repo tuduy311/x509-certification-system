@@ -133,6 +133,9 @@ def list_all_certificates(
     return db.query(models.Certificate).offset(skip).limit(limit).all()
 # =========================================================================
 
+# =========================================================================
+# Config
+# =========================================================================
 @router.get("/config")
 def get_config(
     current_user: models.User = Depends(deps.get_current_admin_user),
@@ -185,38 +188,9 @@ def get_all_options(
         "validity_options": db.query(models.ValidityOption).filter(models.ValidityOption.is_active == True).all()
     }
 
-@router.get("/options/asymmetric-algorithms", response_model=List[standards_schemas.AsymmetricAlgorithmOut])
-def list_asymmetric_algorithms(
-    current_user: models.User = Depends(deps.get_current_active_user),
-    db: Session = Depends(deps.get_db)
-) -> Any:
-    """List asymmetric algorithms available."""
-    return db.query(models.AsymmetricAlgorithm).filter(models.AsymmetricAlgorithm.is_active == True).all()
-
-@router.get("/options/hash-algorithms", response_model=List[standards_schemas.HashAlgorithmOut])
-def list_hash_algorithms(
-    current_user: models.User = Depends(deps.get_current_active_user),
-    db: Session = Depends(deps.get_db)
-) -> Any:
-    """List hash algorithms available."""
-    return db.query(models.HashAlgorithm).filter(models.HashAlgorithm.is_active == True).all()
-
-@router.get("/options/key-lengths", response_model=List[standards_schemas.KeyLengthOut])
-def list_key_lengths(
-    current_user: models.User = Depends(deps.get_current_active_user),
-    db: Session = Depends(deps.get_db)
-) -> Any:
-    """List key lengths available."""
-    return db.query(models.KeyLength).filter(models.KeyLength.is_active == True).all()
-
-@router.get("/options/validity-options", response_model=List[standards_schemas.ValidityOptionOut])
-def list_validity_options(
-    current_user: models.User = Depends(deps.get_current_active_user),
-    db: Session = Depends(deps.get_db)
-) -> Any:
-    """List validity period options available."""
-    return db.query(models.ValidityOption).filter(models.ValidityOption.is_active == True).all()
-
+# =========================================================================
+# 
+# =========================================================================
 @router.get("/revocation-requests", response_model=List[schemas.RevocationRequestOut])
 def list_revocation_requests(
     current_user: models.User = Depends(deps.get_current_admin_user),

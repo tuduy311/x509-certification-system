@@ -19,6 +19,8 @@ def certificate_standards():
         st.session_state.config_changed = {}
     if "config_save_error" not in st.session_state:
         st.session_state.config_save_error = None
+    if "reset_counter" not in st.session_state:
+        st.session_state.reset_counter = 0
 
     # ── Back button (with top margin to avoid Streamlit toolbar overlap) ──
     st.markdown("<div style='margin-top:60px'></div>", unsafe_allow_html=True)
@@ -64,6 +66,7 @@ def certificate_standards():
             st.session_state.validity_options = [90, 365, 730, 3650]
 
     config = st.session_state.config_data
+    ctr = st.session_state.reset_counter
 
     # ── Tabs ──
     tab1, tab2, tab3, tab4 = st.tabs([
@@ -90,9 +93,12 @@ def certificate_standards():
                 "Default Hash Algorithm",
                 st.session_state.hash_algos,
                 index=st.session_state.hash_algos.index(curr_hash) if curr_hash in st.session_state.hash_algos else 0,
-                key="hash_algo_input"
+                key=f"hash_algo_input_{ctr}"
             )
-            st.session_state.config_changed["hash_algorithm"] = hash_algo
+            if hash_algo != curr_hash:
+                st.session_state.config_changed["hash_algorithm"] = hash_algo
+            elif "hash_algorithm" in st.session_state.config_changed:
+                del st.session_state.config_changed["hash_algorithm"]
 
             curr_ver = config.get("certificate_version", "3")
             versions_list = ["1", "2", "3"]
@@ -104,9 +110,12 @@ def certificate_standards():
                 "Certificate Version",
                 versions_list,
                 index=versions_list.index(curr_ver) if curr_ver in versions_list else 2,
-                key="cert_version_input"
+                key=f"cert_version_input_{ctr}"
             )
-            st.session_state.config_changed["certificate_version"] = cert_version
+            if cert_version != curr_ver:
+                st.session_state.config_changed["certificate_version"] = cert_version
+            elif "certificate_version" in st.session_state.config_changed:
+                del st.session_state.config_changed["certificate_version"]
 
         with col2:
             st.write("**Default Validity Period:**")
@@ -122,18 +131,25 @@ def certificate_standards():
                 "Default Validity (days)",
                 val_opts,
                 index=val_opts.index(curr_val) if curr_val in val_opts else 0,
-                key="default_validity_input"
+                key=f"default_validity_input_{ctr}"
             )
-            st.session_state.config_changed["default_validity_days"] = default_validity
+            if default_validity != curr_val:
+                st.session_state.config_changed["default_validity_days"] = default_validity
+            elif "default_validity_days" in st.session_state.config_changed:
+                del st.session_state.config_changed["default_validity_days"]
 
+            curr_crl = int(config.get("crl_update_days", 30))
             crl_update = st.number_input(
                 "CRL Update Interval (days)",
                 min_value=1, max_value=365,
-                value=int(config.get("crl_update_days", 30)),
+                value=curr_crl,
                 step=1,
-                key="crl_update_input"
+                key=f"crl_update_input_{ctr}"
             )
-            st.session_state.config_changed["crl_update_days"] = str(crl_update)
+            if crl_update != curr_crl:
+                st.session_state.config_changed["crl_update_days"] = str(crl_update)
+            elif "crl_update_days" in st.session_state.config_changed:
+                del st.session_state.config_changed["crl_update_days"]
 
     # ── TAB 2: Encryption ──
     with tab2:
@@ -144,19 +160,29 @@ def certificate_standards():
         with col1:
             st.write("**Asymmetric Algorithms:**")
 
+            curr_rsa = config.get("enable_rsa") == "true"
             enable_rsa = st.checkbox(
                 "Enable RSA",
-                value=config.get("enable_rsa") == "true",
-                key="enable_rsa_input"
+                value=curr_rsa,
+                key=f"enable_rsa_input_{ctr}"
             )
-            st.session_state.config_changed["enable_rsa"] = "true" if enable_rsa else "false"
+            val_rsa_str = "true" if enable_rsa else "false"
+            if enable_rsa != curr_rsa:
+                st.session_state.config_changed["enable_rsa"] = val_rsa_str
+            elif "enable_rsa" in st.session_state.config_changed:
+                del st.session_state.config_changed["enable_rsa"]
 
+            curr_ecc = config.get("enable_ecc") == "true"
             enable_ecc = st.checkbox(
                 "Enable ECC",
-                value=config.get("enable_ecc") == "true",
-                key="enable_ecc_input"
+                value=curr_ecc,
+                key=f"enable_ecc_input_{ctr}"
             )
-            st.session_state.config_changed["enable_ecc"] = "true" if enable_ecc else "false"
+            val_ecc_str = "true" if enable_ecc else "false"
+            if enable_ecc != curr_ecc:
+                st.session_state.config_changed["enable_ecc"] = val_ecc_str
+            elif "enable_ecc" in st.session_state.config_changed:
+                del st.session_state.config_changed["enable_ecc"]
 
             curr_asym = config.get("asymmetric_algorithm", "RSA")
             if curr_asym not in st.session_state.asymmetric_algos:
@@ -166,9 +192,12 @@ def certificate_standards():
                 "Default Asymmetric Algorithm",
                 st.session_state.asymmetric_algos,
                 index=st.session_state.asymmetric_algos.index(curr_asym) if curr_asym in st.session_state.asymmetric_algos else 0,
-                key="asymmetric_algo_input"
+                key=f"asymmetric_algo_input_{ctr}"
             )
-            st.session_state.config_changed["asymmetric_algorithm"] = asymmetric_algo
+            if asymmetric_algo != curr_asym:
+                st.session_state.config_changed["asymmetric_algorithm"] = asymmetric_algo
+            elif "asymmetric_algorithm" in st.session_state.config_changed:
+                del st.session_state.config_changed["asymmetric_algorithm"]
 
         with col2:
             st.write("**Key Size Settings:**")
@@ -188,9 +217,12 @@ def certificate_standards():
                 "Default Key Length (bits)",
                 algo_key_lengths,
                 index=algo_key_lengths.index(curr_kl) if curr_kl in algo_key_lengths else 0,
-                key="key_length_input"
+                key=f"key_length_input_{ctr}"
             )
-            st.session_state.config_changed["key_length"] = key_length
+            if key_length != curr_kl:
+                st.session_state.config_changed["key_length"] = key_length
+            elif "key_length" in st.session_state.config_changed:
+                del st.session_state.config_changed["key_length"]
 
             curr_min_kl = config.get("min_key_length", "2048")
             if curr_min_kl not in algo_key_lengths:
@@ -201,9 +233,12 @@ def certificate_standards():
                 "Minimum Key Length (bits)",
                 algo_key_lengths,
                 index=algo_key_lengths.index(curr_min_kl) if curr_min_kl in algo_key_lengths else 0,
-                key="min_key_length_input"
+                key=f"min_key_length_input_{ctr}"
             )
-            st.session_state.config_changed["min_key_length"] = min_key_length
+            if min_key_length != curr_min_kl:
+                st.session_state.config_changed["min_key_length"] = min_key_length
+            elif "min_key_length" in st.session_state.config_changed:
+                del st.session_state.config_changed["min_key_length"]
 
             st.info(
                 "💡 Larger key lengths provide better security but may impact performance.",
@@ -219,14 +254,18 @@ def certificate_standards():
         with col1:
             st.write("**Validity Constraints:**")
 
+            curr_max_val = int(config.get("max_cert_validity_days", 3650))
             max_validity = st.number_input(
                 "Maximum Certificate Validity (days)",
                 min_value=1, max_value=9999,
-                value=int(config.get("max_cert_validity_days", 3650)),
+                value=curr_max_val,
                 step=1,
-                key="max_validity_input"
+                key=f"max_validity_input_{ctr}"
             )
-            st.session_state.config_changed["max_cert_validity_days"] = str(max_validity)
+            if max_validity != curr_max_val:
+                st.session_state.config_changed["max_cert_validity_days"] = str(max_validity)
+            elif "max_cert_validity_days" in st.session_state.config_changed:
+                del st.session_state.config_changed["max_cert_validity_days"]
 
             st.markdown("""
             **Validity Guidelines:**
@@ -294,6 +333,10 @@ def certificate_standards():
                 api_client.reset_config_to_defaults()
                 st.session_state.config_data = _load_config()
                 st.session_state.config_changed = {}
+                
+                # Increment reset counter to change all widget keys, forcing full fresh redraw!
+                st.session_state.reset_counter += 1
+                
                 st.warning("⚠️ Configuration reset to default values.")
                 st.rerun()
             except http_requests.ConnectionError:
@@ -313,6 +356,7 @@ def certificate_standards():
                         st.session_state.config_data[key] = value
                     
                     st.session_state.config_changed = {}
+                    st.session_state.reset_counter += 1  # Refresh keys to load clean states
                     st.success(
                         f"Configuration saved successfully!\n\n"
                         f"**Updated Settings:**\n"
@@ -323,6 +367,7 @@ def certificate_standards():
                         f"- Saved At: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                         icon="✅"
                     )
+                    st.rerun()
                 except http_requests.HTTPError as e:
                     detail = e.response.json().get("detail", str(e)) if e.response else str(e)
                     st.error(f"❌ Failed to save configuration: {detail}")

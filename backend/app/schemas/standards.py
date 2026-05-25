@@ -1,0 +1,55 @@
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+
+class AsymmetricAlgorithmOut(BaseModel):
+    id: int
+    name: str
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+class HashAlgorithmOut(BaseModel):
+    id: int
+    name: str
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+class KeyLengthOut(BaseModel):
+    id: int
+    value: int
+    algo_name: str
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+class ValidityOptionOut(BaseModel):
+    id: int
+    value: int
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+class KeyManagementOut(BaseModel):
+    id: int
+    user_id: int
+    algorithm: str
+    key_size: int
+    pubkey_pem: str
+    fingerprint: str
+    description: Optional[str] = None
+    created_at: datetime
+    status: str
+
+    class Config:
+        from_attributes = True
+
+class KeyCreateRequest(BaseModel):
+    algorithm: str
+    key_size: int
+    description: Optional[str] = None

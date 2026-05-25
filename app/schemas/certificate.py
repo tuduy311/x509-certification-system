@@ -14,6 +14,11 @@ class CSRCreate(BaseModel):
 class CSRUpload(BaseModel):
     csr_pem: str
 
+# [THÊM MỚI] Response trả về khi tự động sinh CSR từ form
+class CSRGenerateResponse(BaseModel):
+    private_key: str
+    csr_pem: str
+
 class CertificateRequestOut(BaseModel):
     id: int
     user_id: int
@@ -69,4 +74,3 @@ class ActivityLogOut(BaseModel):
 
 class CertificateUpload(BaseModel):
     cert_pem: str
-

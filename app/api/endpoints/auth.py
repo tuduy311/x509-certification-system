@@ -26,6 +26,10 @@ def login_access_token(
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    # [THÊM] Log hoạt động đăng nhập
+    deps.log_activity(db=db, action="USER_LOGIN", details=f"User '{user.username}' logged in", user_id=user.id)
+
     return {
         "access_token": security.create_access_token(
             user.username, expires_delta=access_token_expires
@@ -56,20 +60,31 @@ def register_user(
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # [THÊM] Log hoạt động đăng ký
+    deps.log_activity(db=db, action="USER_REGISTERED", details=f"New customer '{user.username}' registered", user_id=user.id)
+
     return user
 
+# [SỬA] Nhận mật khẩu mới qua request body (schemas.PasswordChange) thay vì query param
+# Lý do: Query param làm lộ mật khẩu trong URL, server log, và browser history
 @router.put("/change-password", response_model=schemas.UserOut)
 def change_password(
-    new_password: str,
+    pwd_data: schemas.PasswordChange,
     current_user: models.User = Depends(deps.get_current_active_user),
     db: Session = Depends(deps.get_db)
 ) -> Any:
     """
-    Change user password.
+    Change user password. Password is sent in request body (not query param) for security.
+    Body: { "new_password": "..." }
     """
-    hashed_password = security.get_password_hash(new_password)
+    hashed_password = security.get_password_hash(pwd_data.new_password)
     current_user.hashed_password = hashed_password
     db.add(current_user)
     db.commit()
     db.refresh(current_user)
+
+    # [THÊM] Log hoạt động đổi mật khẩu
+    deps.log_activity(db=db, action="PASSWORD_CHANGED", details=f"User '{current_user.username}' changed password", user_id=current_user.id)
+
     return current_user

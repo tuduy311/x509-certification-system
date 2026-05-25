@@ -155,12 +155,21 @@ def parse_certificate(cert_pem: str):
     cert = x509.load_pem_x509_certificate(cert_pem.encode("utf-8"), default_backend())
     subject = {attr.oid._name: attr.value for attr in cert.subject}
     issuer = {attr.oid._name: attr.value for attr in cert.issuer}
-    
+
+    # Dùng not_valid_before_utc / not_valid_after_utc (UTC-aware) thay vì
+    # not_valid_before / not_valid_after (naive datetime - deprecated)
+    try:
+        not_before = cert.not_valid_before_utc
+        not_after = cert.not_valid_after_utc
+    except AttributeError:  # fallback cho cryptography phiên bản cũ
+        not_before = cert.not_valid_before
+        not_after = cert.not_valid_after
+
     return {
         "serial_number": str(cert.serial_number),
         "subject": subject,
         "issuer": issuer,
-        "not_valid_before": cert.not_valid_before,
-        "not_valid_after": cert.not_valid_after
+        "not_valid_before": not_before.isoformat(),
+        "not_valid_after": not_after.isoformat()
     }
 

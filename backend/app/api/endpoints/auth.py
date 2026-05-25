@@ -5,11 +5,11 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 
-from app.core import security
-from app.core.config import settings
-from app.db import models
-from app.api import deps
-from app.schemas import user as schemas
+from backend.app.core import security
+from backend.app.core.config import settings
+from backend.app.db import models
+from backend.app.api import deps
+from backend.app.schemas import user as schemas
 
 router = APIRouter()
 
@@ -128,6 +128,19 @@ def change_password(
     Body: { "new_password": "..." }
     New password must meet security requirements.
     """
+    # 1. XÁC THỰC MẬT KHẨU CŨ
+    if not security.verify_password(pwd_data.old_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=400,
+            detail="Mật khẩu cũ không chính xác."
+        )
+    
+    # 2. Kiểm tra mật khẩu mới có trùng mật khẩu cũ không (Optional nhưng nên có)
+    if pwd_data.old_password == pwd_data.new_password:
+        raise HTTPException(
+            status_code=400,
+            detail="Mật khẩu mới không được trùng với mật khẩu cũ."
+        )
     # Validate password strength
     validate_password_strength(pwd_data.new_password)
     

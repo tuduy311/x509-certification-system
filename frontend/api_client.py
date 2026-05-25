@@ -238,12 +238,13 @@ def get_config() -> dict:
     return _get("/api/admin/config")
 
 
-def update_config(key: str, value: str) -> dict:
+def update_config(settings_dict: dict) -> dict:
     """
-    PUT /api/admin/config?key=...&value=...
-    Returns: {"msg": "Configuration updated successfully"}
+    PUT /api/admin/config
+    Body: {"key1": "value1", "key2": "value2"}
+    Returns: {"msg": "Configurations updated successfully"}
     """
-    return _put("/api/admin/config", params={"key": key, "value": value})
+    return _put("/api/admin/config", json=settings_dict)
 
 
 def reset_config_to_defaults() -> dict:
@@ -252,6 +253,14 @@ def reset_config_to_defaults() -> dict:
     Returns: {"msg": "Configuration reset to defaults successfully"}
     """
     return _post("/api/admin/config/reset")
+
+
+def get_all_options() -> dict:
+    """
+    GET /api/admin/options/all
+    Returns: {"asymmetric_algorithms": [...], "hash_algorithms": [...], "key_lengths": [...], "validity_options": [...]}
+    """
+    return _get("/api/admin/options/all")
 
 
 def get_asymmetric_algorithms() -> list:

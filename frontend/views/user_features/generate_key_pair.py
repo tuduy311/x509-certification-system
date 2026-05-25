@@ -20,17 +20,15 @@ def generate_key_pair():
     st.markdown("Generate a new public/private key pair for certificate signing requests")
     st.divider()
 
-    # ── Fetch option lists from backend once per visit ──
-    if "asymmetric_algos" not in st.session_state or st.session_state.asymmetric_algos is None:
+    # ── Load all lookup options from backend in a single request ──
+    options_loaded = all(k in st.session_state for k in ["asymmetric_algos", "key_lengths"])
+    if not options_loaded:
         try:
-            st.session_state.asymmetric_algos = [alg["name"] for alg in api_client.get_asymmetric_algorithms()]
-        except Exception:
+            all_opts = api_client.get_all_options()
+            st.session_state.asymmetric_algos = [alg["name"] for alg in all_opts["asymmetric_algorithms"]]
+            st.session_state.key_lengths = all_opts["key_lengths"]
+        except Exception as e:
             st.session_state.asymmetric_algos = ["RSA", "ECC"]
-
-    if "key_lengths" not in st.session_state or st.session_state.key_lengths is None:
-        try:
-            st.session_state.key_lengths = api_client.get_key_lengths()
-        except Exception:
             st.session_state.key_lengths = [
                 {"value": 2048, "algo_name": "RSA"},
                 {"value": 3072, "algo_name": "RSA"},

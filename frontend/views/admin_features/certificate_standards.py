@@ -40,22 +40,19 @@ def certificate_standards():
             st.error(f"❌ Cannot connect to backend to fetch current configuration: {e}")
             st.session_state.config_data = {}
 
-    if "asymmetric_algos" not in st.session_state or st.session_state.asymmetric_algos is None:
+    # ── Load all lookup options from backend in a single request ──
+    options_loaded = all(k in st.session_state for k in ["asymmetric_algos", "hash_algos", "key_lengths", "validity_options"])
+    if not options_loaded:
         try:
-            st.session_state.asymmetric_algos = [alg["name"] for alg in api_client.get_asymmetric_algorithms()]
-        except Exception:
+            all_opts = api_client.get_all_options()
+            st.session_state.asymmetric_algos = [alg["name"] for alg in all_opts["asymmetric_algorithms"]]
+            st.session_state.hash_algos = [h["name"] for h in all_opts["hash_algorithms"]]
+            st.session_state.key_lengths = all_opts["key_lengths"]
+            st.session_state.validity_options = [opt["value"] for opt in all_opts["validity_options"]]
+        except Exception as e:
+            st.warning(f"⚠️ Failed to batch load lookup options: {e}. Using defaults.")
             st.session_state.asymmetric_algos = ["RSA", "ECC"]
-
-    if "hash_algos" not in st.session_state or st.session_state.hash_algos is None:
-        try:
-            st.session_state.hash_algos = [h["name"] for h in api_client.get_hash_algorithms()]
-        except Exception:
             st.session_state.hash_algos = ["SHA256", "SHA384", "SHA512"]
-
-    if "key_lengths" not in st.session_state or st.session_state.key_lengths is None:
-        try:
-            st.session_state.key_lengths = api_client.get_key_lengths()
-        except Exception:
             st.session_state.key_lengths = [
                 {"value": 2048, "algo_name": "RSA"},
                 {"value": 3072, "algo_name": "RSA"},
@@ -64,11 +61,6 @@ def certificate_standards():
                 {"value": 384, "algo_name": "ECC"},
                 {"value": 521, "algo_name": "ECC"},
             ]
-
-    if "validity_options" not in st.session_state or st.session_state.validity_options is None:
-        try:
-            st.session_state.validity_options = [opt["value"] for opt in api_client.get_validity_options()]
-        except Exception:
             st.session_state.validity_options = [90, 365, 730, 3650]
 
     config = st.session_state.config_data
@@ -311,30 +303,33 @@ def certificate_standards():
 
     with col2:
         if st.button("💾 Save Configuration", use_container_width=True, type="primary"):
-            errors = []
-            for key, value in st.session_state.config_changed.items():
+            if st.session_state.config_changed:
                 try:
-                    api_client.update_config(key, value)
-                    st.session_state.config_data[key] = value
+                    # Single batch API call to update all changed configs in one go
+                    api_client.update_config(st.session_state.config_changed)
+                    
+                    # Apply changes to local session state config_data
+                    for key, value in st.session_state.config_changed.items():
+                        st.session_state.config_data[key] = value
+                    
+                    st.session_state.config_changed = {}
+                    st.success(
+                        f"Configuration saved successfully!\n\n"
+                        f"**Updated Settings:**\n"
+                        f"- Hash Algorithm: {st.session_state.config_data.get('hash_algorithm')}\n"
+                        f"- Asymmetric Algorithm: {st.session_state.config_data.get('asymmetric_algorithm')}\n"
+                        f"- Default Validity: {st.session_state.config_data.get('default_validity_days')} days\n"
+                        f"- Key Length: {st.session_state.config_data.get('key_length')} bits\n"
+                        f"- Saved At: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                        icon="✅"
+                    )
                 except http_requests.HTTPError as e:
-                    errors.append(f"{key}: {e}")
+                    detail = e.response.json().get("detail", str(e)) if e.response else str(e)
+                    st.error(f"❌ Failed to save configuration: {detail}")
                 except http_requests.ConnectionError:
-                    errors.append(f"{key}: connection error")
-
-            if errors:
-                st.error(f"❌ Some settings failed to save:\n" + "\n".join(errors))
+                    st.error("❌ Cannot connect to backend. Is the server running?")
             else:
-                st.session_state.config_changed = {}
-                st.success(
-                    f"Configuration saved successfully!\n\n"
-                    f"**Updated Settings:**\n"
-                    f"- Hash Algorithm: {st.session_state.config_data.get('hash_algorithm')}\n"
-                    f"- Asymmetric Algorithm: {st.session_state.config_data.get('asymmetric_algorithm')}\n"
-                    f"- Default Validity: {st.session_state.config_data.get('default_validity_days')} days\n"
-                    f"- Key Length: {st.session_state.config_data.get('key_length')} bits\n"
-                    f"- Saved At: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-                    icon="✅"
-                )
+                st.info("No changes to save.")
 
     st.divider()
 

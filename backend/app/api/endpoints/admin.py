@@ -144,20 +144,20 @@ def get_config(
 
 @router.put("/config")
 def update_config(
-    key: str,
-    value: str,
+    settings_dict: dict,
     current_user: models.User = Depends(deps.get_current_admin_user),
     db: Session = Depends(deps.get_db)
 ) -> Any:
-    """Update a technical parameter."""
-    config = db.query(models.SystemConfig).filter(models.SystemConfig.key == key).first()
-    if config:
-        config.value = value
-    else:
-        config = models.SystemConfig(key=key, value=value)
-    db.add(config)
+    """Batch update multiple configurations at once."""
+    for key, value in settings_dict.items():
+        config = db.query(models.SystemConfig).filter(models.SystemConfig.key == key).first()
+        if config:
+            config.value = str(value)
+        else:
+            config = models.SystemConfig(key=key, value=str(value))
+        db.add(config)
     db.commit()
-    return {"msg": "Configuration updated successfully"}
+    return {"msg": "Configurations updated successfully"}
 
 @router.post("/config/reset")
 def reset_config_to_defaults(
@@ -172,9 +172,22 @@ def reset_config_to_defaults(
     db.commit()
     return {"msg": "Configuration reset to defaults successfully"}
 
+@router.get("/options/all", response_model=standards_schemas.AllOptionsOut)
+def get_all_options(
+    current_user: models.User = Depends(deps.get_current_active_user),
+    db: Session = Depends(deps.get_db)
+) -> Any:
+    """Get all lookup options (asymmetric algorithms, hash algorithms, key sizes, validity options) in one request."""
+    return {
+        "asymmetric_algorithms": db.query(models.AsymmetricAlgorithm).filter(models.AsymmetricAlgorithm.is_active == True).all(),
+        "hash_algorithms": db.query(models.HashAlgorithm).filter(models.HashAlgorithm.is_active == True).all(),
+        "key_lengths": db.query(models.KeyLength).filter(models.KeyLength.is_active == True).all(),
+        "validity_options": db.query(models.ValidityOption).filter(models.ValidityOption.is_active == True).all()
+    }
+
 @router.get("/options/asymmetric-algorithms", response_model=List[standards_schemas.AsymmetricAlgorithmOut])
 def list_asymmetric_algorithms(
-    current_user: models.User = Depends(deps.get_current_admin_user),
+    current_user: models.User = Depends(deps.get_current_active_user),
     db: Session = Depends(deps.get_db)
 ) -> Any:
     """List asymmetric algorithms available."""
@@ -182,7 +195,7 @@ def list_asymmetric_algorithms(
 
 @router.get("/options/hash-algorithms", response_model=List[standards_schemas.HashAlgorithmOut])
 def list_hash_algorithms(
-    current_user: models.User = Depends(deps.get_current_admin_user),
+    current_user: models.User = Depends(deps.get_current_active_user),
     db: Session = Depends(deps.get_db)
 ) -> Any:
     """List hash algorithms available."""
@@ -190,7 +203,7 @@ def list_hash_algorithms(
 
 @router.get("/options/key-lengths", response_model=List[standards_schemas.KeyLengthOut])
 def list_key_lengths(
-    current_user: models.User = Depends(deps.get_current_admin_user),
+    current_user: models.User = Depends(deps.get_current_active_user),
     db: Session = Depends(deps.get_db)
 ) -> Any:
     """List key lengths available."""
@@ -198,12 +211,11 @@ def list_key_lengths(
 
 @router.get("/options/validity-options", response_model=List[standards_schemas.ValidityOptionOut])
 def list_validity_options(
-    current_user: models.User = Depends(deps.get_current_admin_user),
+    current_user: models.User = Depends(deps.get_current_active_user),
     db: Session = Depends(deps.get_db)
 ) -> Any:
     """List validity period options available."""
     return db.query(models.ValidityOption).filter(models.ValidityOption.is_active == True).all()
-
 
 @router.get("/revocation-requests", response_model=List[schemas.RevocationRequestOut])
 def list_revocation_requests(

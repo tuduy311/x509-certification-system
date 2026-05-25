@@ -53,3 +53,10 @@ class KeyCreateRequest(BaseModel):
     algorithm: str
     key_size: int
     description: Optional[str] = None
+
+class AllOptionsOut(BaseModel):
+    asymmetric_algorithms: list[AsymmetricAlgorithmOut]
+    hash_algorithms: list[HashAlgorithmOut]
+    key_lengths: list[KeyLengthOut]
+    validity_options: list[ValidityOptionOut]
+

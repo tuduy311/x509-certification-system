@@ -46,7 +46,11 @@ def test_workflow():
 
     # 4. Customer generates key
     print("4. Generate Customer Keys")
-    res = client.get("/api/customer/generate-keys", headers=cust_headers)
+    res = client.post("/api/customer/generate-keys", headers=cust_headers, json={
+        "algorithm": "RSA",
+        "key_size": 2048,
+        "description": "My test key"
+    })
     assert res.status_code == 200, res.text
     keys = res.json()
     assert "private_key" in keys

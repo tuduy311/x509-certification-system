@@ -104,6 +104,10 @@ def generate_csr(private_key, subject_dict: dict, hash_alg: str = "SHA256"):
         x509.NameAttribute(NameOID.ORGANIZATION_NAME, subject_dict.get("organization", settings.ORGANIZATION_NAME)),
         x509.NameAttribute(NameOID.COMMON_NAME, subject_dict.get("common_name")),
     ]
+    if subject_dict.get("organizational_unit"):
+        subject_attributes.append(
+            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, subject_dict.get("organizational_unit"))
+        )
     
     csr = x509.CertificateSigningRequestBuilder().subject_name(
         x509.Name(subject_attributes)

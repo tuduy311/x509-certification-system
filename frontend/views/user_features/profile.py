@@ -153,11 +153,29 @@ def profile():
                 st.error("❌ Password must be at least 8 characters")
             else:
                 try:
-                    api_client.change_password(new_password)
-                    st.success("✅ Password Changed Successfully! Please log in again with your new password.")
+                    # ✅ FIXED: Đã truyền đủ 3 tham số tương thích với api_client.py mới của bạn
+                    api_client.change_password(current_password, new_password, confirm_password)
+                    st.success("✅ Password Changed Successfully!")
                 except http_requests.HTTPError as e:
-                    detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                    st.error(f"❌ Error: {detail}")
+                    if e.response is not None:
+                        # Bóc tách tường minh nếu backend bắn ra lỗi Validation 422 (như sai định dạng mật khẩu)
+                        if e.response.status_code == 422:
+                            try:
+                                validation_errors = e.response.json().get("detail", [])
+                                for err in validation_errors:
+                                    field = err.get("loc", ["body"])[-1]
+                                    msg = err.get("msg", "Invalid format.")
+                                    st.error(f"⚠️ Validation Error ({field}): {msg}")
+                            except Exception:
+                                st.error("❌ Input data format is not accepted by the Server.")
+                        else:
+                            try:
+                                error_detail = e.response.json().get("detail", "Bad Request")
+                                st.error(f"❌ {error_detail}")
+                            except Exception:
+                                st.error(f"❌ Error {e.response.status_code}: {e.response.text}")
+                    else:
+                        st.error(f"❌ Error: {str(e)}")
                 except http_requests.ConnectionError:
                     st.error("❌ Cannot connect to backend.")
 

@@ -11,20 +11,31 @@ from app.core import crypto_utils
 
 router = APIRouter()
 
+def get_config_value(db: Session, key: str, default: str) -> str:
+    cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == key).first()
+    return cfg.value if cfg else default
+
 @router.post("/setup-root-ca", response_model=dict)
 def setup_root_ca(
-    algo: str = "RSA",
-    key_size: int = 2048,
-    validity_days: int = 3650,
-    hash_alg: str = "SHA256",
+    algo: str = None,
+    key_size: int = None,
+    validity_days: int = None,
+    hash_alg: str = None,
     current_user: models.User = Depends(deps.get_current_admin_user),
     db: Session = Depends(deps.get_db)
 ) -> Any:
     """
-    Generate Root Certificate and Keys.
+    Generate Root Certificate and Keys using system configs if not provided.
     """
+    algo = algo or get_config_value(db, "asymmetric_algorithm", "RSA")
+    key_size = key_size or int(get_config_value(db, "key_length", "2048"))
+    validity_days = validity_days or int(get_config_value(db, "max_cert_validity_days", "3650"))
+    hash_alg = hash_alg or get_config_value(db, "hash_algorithm", "SHA256")
+    
     try:
         crypto_utils.generate_root_ca(algo, key_size, validity_days, hash_alg)
+        
+        deps.log_activity(db, action="ROOT_CA_GENERATED", details=f"Algo: {algo}, KeySize: {key_size}", user_id=current_user.id)
         return {"msg": "Root CA generated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -45,19 +56,23 @@ def list_requests(
 @router.post("/requests/{request_id}/approve", response_model=schemas.CertificateOut)
 def approve_request(
     request_id: int,
-    validity_days: int = 365,
-    hash_alg: str = "SHA256",
+    validity_days: int = None,
+    hash_alg: str = None,
     current_user: models.User = Depends(deps.get_current_admin_user),
     db: Session = Depends(deps.get_db)
 ) -> Any:
     """
     Approve a CSR and issue an X.509 certificate.
+    Uses default config from database if parameters are not provided.
     """
     cert_req = db.query(models.CertificateRequest).filter(models.CertificateRequest.id == request_id).first()
     if not cert_req:
         raise HTTPException(status_code=404, detail="Request not found")
     if cert_req.status != models.CertStatus.PENDING:
         raise HTTPException(status_code=400, detail="Request already processed")
+
+    validity_days = validity_days or int(get_config_value(db, "default_validity_days", "365"))
+    hash_alg = hash_alg or get_config_value(db, "hash_algorithm", "SHA256")
 
     try:
         cert_pem, serial_num = crypto_utils.sign_csr(cert_req.csr_pem, validity_days, hash_alg)
@@ -79,6 +94,8 @@ def approve_request(
     db.add(cert_req)
     db.commit()
     db.refresh(cert)
+    
+    deps.log_activity(db, action="CERTIFICATE_APPROVED", details=f"CertID: {cert.id}, Serial: {serial_num}", user_id=current_user.id)
     return cert
 
 @router.post("/requests/{request_id}/reject", response_model=schemas.CertificateRequestOut)
@@ -242,8 +259,8 @@ def reject_revocation_request(
 @router.post("/certificates/{cert_id}/renew", response_model=schemas.CertificateOut)
 def renew_certificate(
     cert_id: int,
-    validity_days: int = 365,
-    hash_alg: str = "SHA256",
+    validity_days: int = None,
+    hash_alg: str = None,
     current_user: models.User = Depends(deps.get_current_admin_user),
     db: Session = Depends(deps.get_db)
 ) -> Any:
@@ -264,6 +281,9 @@ def renew_certificate(
     if not cert_req:
         raise HTTPException(status_code=404, detail="Original CSR request not found")
 
+    validity_days = validity_days or int(get_config_value(db, "default_validity_days", "365"))
+    hash_alg = hash_alg or get_config_value(db, "hash_algorithm", "SHA256")
+
     try:
         cert_pem, serial_num = crypto_utils.sign_csr(cert_req.csr_pem, validity_days, hash_alg)
     except Exception as e:
@@ -281,21 +301,27 @@ def renew_certificate(
     db.add(new_cert)
     db.commit()
     db.refresh(new_cert)
+    
+    deps.log_activity(db, action="CERTIFICATE_RENEWAL_APPROVED", details=f"Old CertID: {cert.id}, New Serial: {serial_num}", user_id=current_user.id)
     return new_cert
 # =========================================================================
 
 @router.post("/generate-crl")
 def generate_crl_endpoint(
-    validity_days: int = 30,
-    hash_alg: str = "SHA256",
+    validity_days: int = None,
+    hash_alg: str = None,
     current_user: models.User = Depends(deps.get_current_admin_user),
     db: Session = Depends(deps.get_db)
 ) -> Any:
     """Generate CRL from revoked certificates."""
+    validity_days = validity_days or int(get_config_value(db, "crl_update_days", "30"))
+    hash_alg = hash_alg or get_config_value(db, "hash_algorithm", "SHA256")
+    
     revoked_certs = db.query(models.Certificate).filter(models.Certificate.status == models.CertStatus.REVOKED).all()
     serials = [c.serial_number for c in revoked_certs]
     try:
         crl_pem = crypto_utils.generate_crl(serials, validity_days, hash_alg)
+        deps.log_activity(db, action="CRL_GENERATED", details=f"Included {len(serials)} revoked certs", user_id=current_user.id)
         return {"crl_pem": crl_pem}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

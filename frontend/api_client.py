@@ -75,12 +75,26 @@ def register(username: str, password: str) -> dict:
     return resp.json()
 
 
-def change_password(new_password: str) -> dict:
+def change_password(old_password: str, new_password: str, confirm_new_password: str) -> dict:
     """
-    PUT /api/auth/change-password?new_password=...
-    Returns: UserOut dict
+    PUT /api/auth/change-password
+    
+    Request Body (JSON):
+    {
+        "old_password": "...",
+        "new_password": "...",
+        "confirm_new_password": "..."
+    }
+    
+    Returns:
+        UserOut dict chứa thông tin user sau khi cập nhật thành công.
     """
-    return _put("/api/auth/change-password", params={"new_password": new_password})
+    
+    return _put("/api/auth/change-password", json={
+        "old_password": old_password,
+        "new_password": new_password,
+        "confirm_new_password": confirm_new_password
+    })
 
 
 def get_me() -> dict:

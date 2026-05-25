@@ -1,6 +1,6 @@
 from typing import Any, List
 import hashlib
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from cryptography.hazmat.primitives import serialization
 
@@ -80,6 +80,79 @@ def list_my_keys(
     return db.query(models.KeyManagement).filter(models.KeyManagement.user_id == current_user.id).all()
 
 
+@router.post("/generate-csr")
+def generate_csr_from_form(
+    req: schemas.CSRCreate,
+    current_user: models.User = Depends(deps.get_current_active_user),
+    db: Session = Depends(deps.get_db)
+) -> Any:
+    """
+    Generate a new RSA key pair and create a CSR with the given form data.
+    """
+    try:
+        # Generate new RSA key pair
+        private_key = crypto_utils.generate_key_pair("RSA", 2048)
+        
+        # Serialize Private Key
+        private_pem = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+        
+        # Serialize Public Key
+        public_key = private_key.public_key()
+        public_pem = public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        
+        # Calculate fingerprint
+        pub_der = public_key.public_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        fingerprint = hashlib.sha256(pub_der).hexdigest()
+        
+        # Save key record to DB
+        key_record = models.KeyManagement(
+            user_id=current_user.id,
+            algorithm="RSA",
+            key_size=2048,
+            pubkey_pem=public_pem.decode('utf-8'),
+            fingerprint=fingerprint,
+            description=f"Auto-generated for {req.common_name}",
+            status="active"
+        )
+        db.add(key_record)
+        db.commit()
+        
+        # Generate CSR
+        subject_dict = {
+            "common_name": req.common_name,
+            "country": req.country,
+            "state": req.state,
+            "locality": req.locality,
+            "organization": req.organization,
+            "organizational_unit": req.organizational_unit,
+        }
+        
+        # Get hash algorithm from config
+        hash_alg_cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == "hash_algorithm").first()
+        hash_alg = hash_alg_cfg.value if hash_alg_cfg else "SHA256"
+        
+        csr_pem = crypto_utils.generate_csr(private_key, subject_dict, hash_alg)
+        
+        deps.log_activity(db, action="CSR_GENERATED", details=f"CN: {req.common_name}", user_id=current_user.id)
+        
+        return {
+            "private_key": private_pem.decode('utf-8'),
+            "csr_pem": csr_pem
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate CSR: {str(e)}")
+
+
 @router.post("/request-certificate", response_model=schemas.CertificateRequestOut)
 def request_certificate(
     csr_data: schemas.CSRUpload,
@@ -119,6 +192,28 @@ def list_my_certificates(
     List all issued certificates for the current user.
     """
     return db.query(models.Certificate).filter(models.Certificate.user_id == current_user.id).all()
+
+@router.get("/certificates/{cert_id}/download")
+def download_certificate(
+    cert_id: int,
+    current_user: models.User = Depends(deps.get_current_active_user),
+    db: Session = Depends(deps.get_db)
+) -> Any:
+    """
+    Download the certificate as a .crt file.
+    """
+    cert = db.query(models.Certificate).filter(
+        models.Certificate.id == cert_id,
+        models.Certificate.user_id == current_user.id
+    ).first()
+    if not cert:
+        raise HTTPException(status_code=404, detail="Certificate not found or not owned by user")
+    
+    return Response(
+        content=cert.cert_pem,
+        media_type="application/x-pem-file",
+        headers={"Content-Disposition": f"attachment; filename=certificate_{cert.serial_number}.crt"}
+    )
 
 @router.post("/certificates/{cert_id}/request-revoke", response_model=schemas.RevocationRequestOut)
 def request_revoke_certificate(

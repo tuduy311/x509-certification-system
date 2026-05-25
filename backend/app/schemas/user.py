@@ -12,6 +12,12 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str
+    confirm_new_password: str
+
+
 class UserOut(UserBase):
     id: int
     role: Role

@@ -159,7 +159,8 @@ def auth_page():
                             st.rerun()
                         except requests.HTTPError as e:
                             if e.response is not None and e.response.status_code == 400:
-                                st.error("Tên đăng nhập đã tồn tại!")
+                                error_detail = e.response.json().get("detail")
+                                st.error(error_detail)
                             else:
                                 st.error(f"Lỗi server: {e}")
                         except requests.ConnectionError:

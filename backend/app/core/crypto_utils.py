@@ -8,8 +8,17 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from app.core.config import settings
 
-ROOT_KEY_PATH = f"{settings.ROOT_CA_PATH}.key"
-ROOT_CERT_PATH = f"{settings.ROOT_CA_PATH}.crt"
+# ── Directory-based storage (separate key_CA and cert_CA folders) ──────────
+_BASE_DIR = os.path.dirname(os.path.abspath(settings.ROOT_CA_PATH))
+KEY_CA_DIR  = os.path.join(_BASE_DIR, "key_CA")
+CERT_CA_DIR = os.path.join(_BASE_DIR, "cert_CA")
+
+ROOT_KEY_PATH  = os.path.join(KEY_CA_DIR,  "root_ca.key")
+ROOT_CERT_PATH = os.path.join(CERT_CA_DIR, "root_ca.crt")
+
+# Ensure directories exist at import time
+os.makedirs(KEY_CA_DIR,  exist_ok=True)
+os.makedirs(CERT_CA_DIR, exist_ok=True)
 
 def generate_key_pair(algorithm: str | int = "RSA", key_size: int = 2048):
     algo = algorithm.upper()
@@ -44,10 +53,46 @@ def get_hash_algorithm(name: str):
     else:
         return hashes.SHA256()
 
-def generate_root_ca(algo: str = "RSA", key_size: int = 2048, validity_days: int = 3650, hash_alg: str = "SHA256"):
+def generate_root_ca_key(algo: str = "RSA", key_size: int = 2048) -> dict:
+    """
+    Generate a Root CA private key and save it to key_CA/root_ca.key.
+    Returns a dict with status and file path info.
+    """
     private_key = generate_key_pair(algo, key_size)
+
+    with open(ROOT_KEY_PATH, "wb") as f:
+        f.write(private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption()
+        ))
+
+    return {
+        "algorithm": algo.upper(),
+        "key_size": key_size,
+        "key_path": ROOT_KEY_PATH,
+    }
+
+
+def generate_root_ca_cert(validity_days: int = 3650, hash_alg: str = "SHA256") -> dict:
+    """
+    Read the existing Root CA private key from key_CA/root_ca.key,
+    build a self-signed certificate, and save it to cert_CA/root_ca.crt.
+    Raises FileNotFoundError if the key has not been generated yet.
+    """
+    if not os.path.exists(ROOT_KEY_PATH):
+        raise FileNotFoundError(
+            "Root CA private key not found. "
+            "Please generate the key pair first via 'Generate Root Key Pair'."
+        )
+
+    with open(ROOT_KEY_PATH, "rb") as f:
+        private_key = serialization.load_pem_private_key(
+            f.read(), password=None, backend=default_backend()
+        )
+
     public_key = private_key.public_key()
-    
+
     subject = issuer = x509.Name([
         x509.NameAttribute(NameOID.COUNTRY_NAME, settings.COUNTRY_NAME),
         x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, settings.STATE_OR_PROVINCE_NAME),
@@ -55,33 +100,37 @@ def generate_root_ca(algo: str = "RSA", key_size: int = 2048, validity_days: int
         x509.NameAttribute(NameOID.ORGANIZATION_NAME, settings.ORGANIZATION_NAME),
         x509.NameAttribute(NameOID.COMMON_NAME, u"Root CA"),
     ])
-    
-    cert = x509.CertificateBuilder().subject_name(
-        subject
-    ).issuer_name(
-        issuer
-    ).public_key(
-        public_key
-    ).serial_number(
-        x509.random_serial_number()
-    ).not_valid_before(
-        datetime.datetime.utcnow()
-    ).not_valid_after(
-        datetime.datetime.utcnow() + datetime.timedelta(days=validity_days)
-    ).add_extension(
-        x509.BasicConstraints(ca=True, path_length=None), critical=True,
-    ).sign(private_key, get_hash_algorithm(hash_alg), default_backend())
-    
-    # Save to files
-    with open(ROOT_KEY_PATH, "wb") as f:
-        f.write(private_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm=serialization.NoEncryption()
-        ))
-        
+
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(public_key)
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.datetime.utcnow())
+        .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=validity_days))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .sign(private_key, get_hash_algorithm(hash_alg), default_backend())
+    )
+
     with open(ROOT_CERT_PATH, "wb") as f:
         f.write(cert.public_bytes(serialization.Encoding.PEM))
+
+    return {
+        "cert_path": ROOT_CERT_PATH,
+        "valid_days": validity_days,
+        "hash_alg": hash_alg,
+    }
+
+
+def root_ca_key_exists() -> bool:
+    """Check whether a root CA private key exists in key_CA/."""
+    return os.path.exists(ROOT_KEY_PATH)
+
+
+def root_ca_cert_exists() -> bool:
+    """Check whether a root CA certificate exists in cert_CA/."""
+    return os.path.exists(ROOT_CERT_PATH)
 
 def get_root_ca():
     if not os.path.exists(ROOT_KEY_PATH) or not os.path.exists(ROOT_CERT_PATH):

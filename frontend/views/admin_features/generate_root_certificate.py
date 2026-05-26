@@ -3,79 +3,107 @@ from datetime import datetime
 import api_client
 import requests as http_requests
 
+from styles.dashboard import Dashboard_CSS
+
+
+def _load_hash_algos():
+    """Load hash algorithms from backend once per session."""
+    if "hash_algos" not in st.session_state:
+        try:
+            all_opts = api_client.get_all_options()
+            st.session_state.hash_algos = [h["name"] for h in all_opts["hash_algorithms"]]
+            st.session_state.hash_algos_load_error = None
+        except Exception as e:
+            st.session_state.hash_algos = []
+            st.session_state.hash_algos_load_error = str(e)
+
+
+def _load_ca_status():
+    """Fetch CA status from backend once per session (or after a generate action)."""
+    if "ca_status" not in st.session_state:
+        try:
+            st.session_state.ca_status = api_client.get_ca_status()
+        except Exception:
+            st.session_state.ca_status = {"key_exists": False, "cert_exists": False}
+
 
 def generate_root_certificate():
+    st.markdown(Dashboard_CSS, unsafe_allow_html=True)
 
-    # Initialize session state
-    if "generated_root_certs" not in st.session_state:
-        st.session_state.generated_root_certs = []
+    # ── Session state ──
+    if "root_cert_history" not in st.session_state:
+        st.session_state.root_cert_history = []
+    if "root_cert_success_msg" not in st.session_state:
+        st.session_state.root_cert_success_msg = None
 
-    # ── Back button (with top margin to avoid Streamlit toolbar overlap) ──
+    # Load hash algos and CA status (cached in session, no re-request on widget changes)
+    _load_hash_algos()
+    _load_ca_status()
+
+    # ── Back button ──
     st.markdown("<div style='margin-top:60px'></div>", unsafe_allow_html=True)
     if st.button("← Back to Dashboard"):
         st.session_state.current_feature = None
         st.rerun()
 
-    st.divider()
-
-    st.title("📜 Generate Root Certificate")
-    st.markdown("Create a new Root Certificate Authority (CA) certificate")
-    st.divider()
-
-    # ── Load all lookup options from backend in a single request ──
-    options_loaded = all(k in st.session_state for k in ["asymmetric_algos", "key_lengths"])
-    if not options_loaded:
-        try:
-            all_opts = api_client.get_all_options()
-            st.session_state.asymmetric_algos = [alg["name"] for alg in all_opts["asymmetric_algorithms"]]
-            st.session_state.key_lengths = all_opts["key_lengths"]
-        except Exception as e:
-            st.session_state.asymmetric_algos = ["RSA", "ECC"]
-            st.session_state.key_lengths = [
-                {"value": 2048, "algo_name": "RSA"},
-                {"value": 3072, "algo_name": "RSA"},
-                {"value": 4096, "algo_name": "RSA"},
-                {"value": 256, "algo_name": "ECC"},
-                {"value": 384, "algo_name": "ECC"},
-                {"value": 521, "algo_name": "ECC"},
-            ]
-
-    # Stats from session history
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("📦 Generated This Session", len(st.session_state.generated_root_certs))
-    with col2:
-        st.info("The Root CA key and certificate are saved on the **server** at the path configured in `.env` (`ROOT_CA_PATH`).")
+    # ── Header ──
+    st.markdown("""
+    <div class="admin-card">
+        <div class="admin-title">📜 Generate Root CA Certificate</div>
+        <div class="admin-content">
+            Read the Root CA private key stored in <code>key_CA/root_ca.key</code>,
+            build a self-signed X.509 certificate, and save it to
+            <code>cert_CA/root_ca.crt</code> on the server.<br>
+            <strong>The Root CA key pair must exist before running this step.</strong>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.divider()
 
-    # Two tabs
-    tab1, tab2 = st.tabs(["📜 Generate New", "📋 Session History"])
+    # ── CA Status banner (from cached session state) ──
+    status  = st.session_state.ca_status
+    key_ok  = status.get("key_exists", False)
+    cert_ok = status.get("cert_exists", False)
 
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        if key_ok:
+            st.success("🔑 Root CA key found – ready to generate certificate.")
+        else:
+            st.error("❌ Root CA key NOT found. Generate the key pair first.")
+    with col_s2:
+        if cert_ok:
+            st.warning("⚠️ A certificate already exists in `cert_CA/` – generating will overwrite it.")
+        else:
+            st.info("ℹ️ No certificate yet – fill in the form below and generate one.")
+
+    st.divider()
+
+    # ── Session metric ──
+    st.metric("📦 Certificates Generated This Session", len(st.session_state.root_cert_history))
+    st.divider()
+
+    tab1, tab2 = st.tabs(["📜 Generate Certificate", "📋 Session History"])
+
+    # ─────────────────────────────── TAB 1 ────────────────────────────────────
     with tab1:
-        st.subheader("Generate New Root CA Certificate")
-        st.markdown("Configure parameters for the new root CA certificate")
+        st.subheader("New Root CA Certificate")
+        st.markdown("Configure the parameters for the self-signed Root CA certificate.")
 
+        if not key_ok:
+            st.warning("⚠️ Please generate the Root CA key pair first before proceeding.")
+            if st.button("➡️ Go to Generate Root Key Pair", use_container_width=True, key="goto_gen_key"):
+                st.session_state.current_feature = "generate_root_key_pair"
+                st.rerun()
+            return  # Block form if no key exists
 
-        st.markdown("**Certificate Parameters**")
+        # Show error if backend options could not be loaded
+        if st.session_state.get("hash_algos_load_error"):
+            st.error(f"❌ Failed to load hash algorithm options from backend: {st.session_state.hash_algos_load_error}")
+            st.stop()
 
-        algorithm = st.selectbox(
-            "Asymmetric Algorithm:",
-            options=st.session_state.asymmetric_algos,
-            key="root_cert_algo"
-        )
-
-        # Filter key sizes based on selected algorithm from DB
-        algo_key_lengths = [kl["value"] for kl in st.session_state.key_lengths if kl["algo_name"].upper() == algorithm.upper()]
-        if not algo_key_lengths:
-            algo_key_lengths = [2048, 3072, 4096] if algorithm == "RSA" else [256, 384, 521]
-
-        key_size = st.selectbox(
-            "Key Size (bits):",
-            options=algo_key_lengths,
-            index=0,
-            key="root_cert_key_size"
-        )
+        st.markdown("**Certificate Parameters:**")
 
         validity_days = st.number_input(
             "Validity Period (days):",
@@ -83,114 +111,122 @@ def generate_root_certificate():
             max_value=36500,
             value=3650,
             step=365,
-            key="root_cert_validity"
+            key="rc_validity"
         )
 
         hash_algorithm = st.selectbox(
             "Hash Algorithm:",
-            options=["SHA256", "SHA384", "SHA512"],
+            options=st.session_state.hash_algos,
             index=0,
-            key="root_cert_hash_alg"
+            key="rc_hash_alg"
         )
 
         st.divider()
 
-        # Configuration summary box
+        # Configuration summary (reactive to widget values, no request needed)
         st.markdown(f"""
-        <div style="background-color: #2d3748; border-left: 4px solid #48bb78; border-radius: 5px; padding: 15px; margin: 15px 0;">
-        <div style="font-weight: bold; color: #48bb78; margin-bottom: 10px;">✓ Certificate Configuration</div>
-        <div style="color: #e0e0e0; font-size: 14px;">
-        <div style="margin: 5px 0;">✅ Self-signed Root CA certificate will be created</div>
-        <div style="margin: 5px 0;">✅ Algorithm: <strong>{algorithm}</strong></div>
-        <div style="margin: 5px 0;">✅ Key size: <strong>{key_size} bits</strong></div>
-        <div style="margin: 5px 0;">✅ Certificate will be valid for <strong>{validity_days} days</strong></div>
-        <div style="margin: 5px 0;">✅ Hash algorithm: <strong>{hash_algorithm}</strong></div>
-        <div style="margin: 5px 0;">✅ Private key will be securely stored on the server</div>
+        <div style="background-color:#2d3748; border-left:4px solid #48bb78;
+                    border-radius:5px; padding:15px; margin:15px 0;">
+        <div style="font-weight:bold; color:#48bb78; margin-bottom:10px;">✓ Certificate Configuration</div>
+        <div style="color:#e0e0e0; font-size:14px;">
+        <div style="margin:5px 0;">✅ Key source: <strong>key_CA/root_ca.key</strong> (server-side)</div>
+        <div style="margin:5px 0;">✅ Type: <strong>Self-signed Root CA</strong></div>
+        <div style="margin:5px 0;">✅ Validity: <strong>{validity_days} days ({validity_days/365:.1f} years)</strong></div>
+        <div style="margin:5px 0;">✅ Hash Algorithm: <strong>{hash_algorithm}</strong></div>
+        <div style="margin:5px 0;">✅ Output: <strong>cert_CA/root_ca.crt</strong> (server-side)</div>
         </div>
         </div>
         """, unsafe_allow_html=True)
 
-        confirm_generate = st.checkbox(
-            "I understand the importance of securing the private key",
-            key="confirm_root_cert_generate"
-        )
-
-        if st.button(
-            "📜 Generate Certificate",
-            disabled=not confirm_generate,
-            key="btn_generate_root_cert",
-            use_container_width=True
-        ):
-            with st.spinner("Generating root CA certificate and key pair on server..."):
-                try:
-                    result = api_client.setup_root_ca(
-                        algo=algorithm,
-                        key_size=key_size,
-                        validity_days=validity_days,
-                        hash_alg=hash_algorithm
-                    )
-                    new_cert = {
-                        "algo": algorithm,
-                        "key_size": key_size,
-                        "validity_days": validity_days,
-                        "hash_alg": hash_algorithm,
-                        "timestamp": datetime.now(),
-                        "msg": result.get("msg", "Success")
-                    }
-                    st.session_state.generated_root_certs.append(new_cert)
-
-                    st.success(f"""
-                    ✅ Root CA Certificate Generated Successfully!
-
-                    **Certificate Details:**
-                    - **Asymmetric Algorithm:** {algorithm}
-                    - **Key Size:** {key_size} bits
-                    - **Hash Algorithm:** {hash_algorithm}
-                    - **Validity:** {validity_days} days (~{validity_days/365:.1f} years)
-                    - **Generated:** {new_cert['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}
-                    - **Server message:** {new_cert['msg']}
-
-                    **⚠️ Important:**
-                    1. The Root CA key and cert are saved on the server (ROOT_CA_PATH in .env)
-                    2. Backup the `.key` file in a secure offline location
-                    3. Keep the private key confidential – it signs ALL certificates
-                    """)
-
-                except http_requests.HTTPError as e:
-                    detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                    st.error(f"❌ Error: {detail}")
-                except http_requests.ConnectionError:
-                    st.error("❌ Cannot connect to backend.")
-
-        st.divider()
         with st.expander("🛡️ Security & Compliance"):
             st.markdown("""
             **Security Best Practices:**
             - Root CA certificate should be highly protected
             - Store private key in HSM (Hardware Security Module)
             - Use strong key size (minimum 2048 bits for RSA, minimum 256 bits for ECC)
-            - Set appropriate validity period (10 years recommended)
-            - Enable all critical extensions
+            - Set appropriate validity period (10 years recommended for Root CA)
 
             **Compliance Standards:**
-            - RFC 5280 - Internet X.509 Public Key Infrastructure
+            - RFC 5280 – Internet X.509 Public Key Infrastructure
             - CA/Browser Forum Baseline Requirements
             """)
 
-    with tab2:
-        st.subheader("Root CA Generation History (This Session)")
+        confirm_generate = st.checkbox(
+            "I understand generating a new certificate will overwrite the existing `cert_CA/root_ca.crt`",
+            key="rc_confirm"
+        )
 
-        if not st.session_state.generated_root_certs:
+        if st.button(
+            "📜 Generate & Save Certificate",
+            disabled=not confirm_generate,
+            use_container_width=True,
+            type="primary",
+            key="btn_gen_root_cert"
+        ):
+            with st.spinner("Reading key and generating Root CA certificate on server…"):
+                try:
+                    result = api_client.generate_root_cert(
+                        validity_days=int(validity_days),
+                        hash_alg=hash_algorithm
+                    )
+
+                    record = {
+                        "validity_days": result.get("validity_days", validity_days),
+                        "hash_alg":      result.get("hash_alg", hash_algorithm),
+                        "msg":           result.get("msg", "Success"),
+                        "timestamp":     datetime.now(),
+                    }
+                    st.session_state.root_cert_history.append(record)
+
+                    # Update CA status in session without re-requesting anything else
+                    st.session_state.ca_status["cert_exists"] = True
+
+                    st.session_state.root_cert_success_msg = (
+                        f"✅ **Root CA Certificate Generated Successfully!**\n\n"
+                        f"**Certificate Details:**\n"
+                        f"- **Validity:** {record['validity_days']} days (~{record['validity_days']/365:.1f} years)\n"
+                        f"- **Hash Algorithm:** {record['hash_alg']}\n"
+                        f"- **Saved to:** `cert_CA/root_ca.crt` on server\n"
+                        f"- **Generated:** {record['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}\n"
+                        f"- **Server message:** {record['msg']}\n\n"
+                        f"**⚠️ Important:**\n"
+                        f"1. The Root CA cert is saved to `cert_CA/root_ca.crt` on the server\n"
+                        f"2. Backup the `key_CA/root_ca.key` file in a secure offline location\n"
+                        f"3. Keep the private key confidential – it signs ALL issued certificates"
+                    )
+
+                except http_requests.HTTPError as e:
+                    if e.response is not None:
+                        detail = e.response.json().get("detail", str(e))
+                        st.error(f"❌ {detail}")
+                    else:
+                        st.error(f"❌ Error: {str(e)}")
+                    st.session_state.root_cert_success_msg = None
+                except http_requests.ConnectionError:
+                    st.error("❌ Cannot connect to backend.")
+                    st.session_state.root_cert_success_msg = None
+
+        # Show persistent success message (stays visible without rerun)
+        if st.session_state.root_cert_success_msg:
+            st.success(st.session_state.root_cert_success_msg)
+
+    # ─────────────────────────────── TAB 2 ────────────────────────────────────
+    with tab2:
+        st.subheader("Certificate Generation History (This Session)")
+
+        if not st.session_state.root_cert_history:
             st.info("No Root CA certificates generated this session.")
         else:
-            for idx, cert in enumerate(reversed(st.session_state.generated_root_certs), 1):
-                with st.expander(f"📜 Generation #{len(st.session_state.generated_root_certs) - idx + 1} — {cert['timestamp'].strftime('%Y-%m-%d %H:%M')}"):
+            for idx, cert in enumerate(reversed(st.session_state.root_cert_history), 1):
+                n = len(st.session_state.root_cert_history) - idx + 1
+                with st.expander(f"📜 Generation #{n} — {cert['timestamp'].strftime('%Y-%m-%d %H:%M')}"):
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.write(f"**Algorithm:** {cert['algo']}")
-                        st.write(f"**Key Size:** {cert['key_size']} bits")
-                    with col2:
                         st.write(f"**Hash Algorithm:** {cert['hash_alg']}")
                         st.write(f"**Validity:** {cert['validity_days']} days")
-                    st.write(f"**Generated:** {cert['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
+                    with col2:
+                        st.write(f"**Generated:** {cert['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
                     st.write(f"**Server response:** {cert['msg']}")
+
+            st.divider()
+            st.info("🗂️ Certificate files are stored on the server at `cert_CA/root_ca.crt`.")

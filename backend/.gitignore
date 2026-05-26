@@ -36,6 +36,8 @@ ehthumbs.db
 
 # PKI/Certificates (sensitive)
 root_ca/
+key_CA/
+cert_CA/
 *.pem
 *.key
 *.crt

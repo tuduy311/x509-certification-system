@@ -188,17 +188,30 @@ def get_crl() -> dict:
 # Admin endpoints
 # ─────────────────────────────────────────────────────────────────────────────
 
-def setup_root_ca(algo: str = "RSA", key_size: int = 2048, validity_days: int = 3650, hash_alg: str = "SHA256") -> dict:
+def generate_root_key(algo: str = "RSA", key_size: int = 2048) -> dict:
     """
-    POST /api/admin/setup-root-ca?algo=...&key_size=...&validity_days=...&hash_alg=...
-    Returns: {"msg": "Root CA generated successfully"}
+    POST /api/admin/generate-root-key?algo=...&key_size=...
+    Generates a Root CA private key and saves it to key_CA/ on the server.
+    Returns: {"msg": str, "algorithm": str, "key_size": int}
     """
-    return _post("/api/admin/setup-root-ca", params={
-        "algo": algo,
-        "key_size": key_size,
-        "validity_days": validity_days,
-        "hash_alg": hash_alg
-    })
+    return _post("/api/admin/generate-root-key", params={"algo": algo, "key_size": key_size})
+
+
+def generate_root_cert(validity_days: int = 3650, hash_alg: str = "SHA256") -> dict:
+    """
+    POST /api/admin/generate-root-cert?validity_days=...&hash_alg=...
+    Reads the existing key from key_CA/, generates a self-signed cert, saves to cert_CA/.
+    Returns: {"msg": str, "validity_days": int, "hash_alg": str}
+    """
+    return _post("/api/admin/generate-root-cert", params={"validity_days": validity_days, "hash_alg": hash_alg})
+
+
+def get_ca_status() -> dict:
+    """
+    GET /api/admin/ca-status
+    Returns: {"key_exists": bool, "cert_exists": bool}
+    """
+    return _get("/api/admin/ca-status")
 
 
 def get_all_requests() -> list:

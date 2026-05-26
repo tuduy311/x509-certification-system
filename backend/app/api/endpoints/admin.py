@@ -11,34 +11,86 @@ from app.core import crypto_utils
 
 router = APIRouter()
 
+get_current_active_user = deps.get_current_active_user
+
 def get_config_value(db: Session, key: str, default: str) -> str:
     cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == key).first()
     return cfg.value if cfg else default
 
-@router.post("/setup-root-ca", response_model=dict)
-def setup_root_ca(
+@router.post("/generate-root-key", response_model=dict)
+def generate_root_key(
     algo: str = None,
     key_size: int = None,
+    current_user: models.User = Depends(deps.get_current_admin_user),
+    db: Session = Depends(deps.get_db)
+) -> Any:
+    """
+    Generate a Root CA private key and save it to key_CA/root_ca.key on the server.
+    Does NOT generate a certificate – that is a separate step.
+    """
+    algo = algo or get_config_value(db, "asymmetric_algorithm", "RSA")
+    key_size = key_size or int(get_config_value(db, "key_length", "2048"))
+
+    try:
+        info = crypto_utils.generate_root_ca_key(algo, key_size)
+        deps.log_activity(
+            db,
+            action="ROOT_CA_KEY_GENERATED",
+            details=f"Algo: {algo}, KeySize: {key_size}",
+            user_id=current_user.id
+        )
+        return {
+            "msg": f"Root CA key pair generated and saved successfully ({algo} {key_size}-bit).",
+            "algorithm": info["algorithm"],
+            "key_size": info["key_size"],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/generate-root-cert", response_model=dict)
+def generate_root_cert(
     validity_days: int = None,
     hash_alg: str = None,
     current_user: models.User = Depends(deps.get_current_admin_user),
     db: Session = Depends(deps.get_db)
 ) -> Any:
     """
-    Generate Root Certificate and Keys using system configs if not provided.
+    Read the existing Root CA private key from key_CA/, generate a self-signed
+    certificate, and save it to cert_CA/root_ca.crt on the server.
+    The key pair must already exist (call /generate-root-key first).
     """
-    algo = algo or get_config_value(db, "asymmetric_algorithm", "RSA")
-    key_size = key_size or int(get_config_value(db, "key_length", "2048"))
     validity_days = validity_days or int(get_config_value(db, "max_cert_validity_days", "3650"))
     hash_alg = hash_alg or get_config_value(db, "hash_algorithm", "SHA256")
-    
+
     try:
-        crypto_utils.generate_root_ca(algo, key_size, validity_days, hash_alg)
-        
-        deps.log_activity(db, action="ROOT_CA_GENERATED", details=f"Algo: {algo}, KeySize: {key_size}", user_id=current_user.id)
-        return {"msg": "Root CA generated successfully"}
+        info = crypto_utils.generate_root_ca_cert(validity_days, hash_alg)
+        deps.log_activity(
+            db,
+            action="ROOT_CA_CERT_GENERATED",
+            details=f"ValidityDays: {validity_days}, HashAlg: {hash_alg}",
+            user_id=current_user.id
+        )
+        return {
+            "msg": f"Root CA certificate generated and saved successfully (valid {validity_days} days, {hash_alg}).",
+            "validity_days": info["valid_days"],
+            "hash_alg": info["hash_alg"],
+        }
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ── CA Status ─────────────────────────────────────────────────────────────────
+@router.get("/ca-status", response_model=dict)
+def get_ca_status(
+    current_user: models.User = Depends(deps.get_current_admin_user),
+) -> Any:
+    """Return whether the root CA key and certificate files exist on the server."""
+    return {
+        "key_exists": crypto_utils.root_ca_key_exists(),
+        "cert_exists": crypto_utils.root_ca_cert_exists(),
+    }
 
 @router.get("/requests", response_model=List[schemas.CertificateRequestOut])
 def list_requests(

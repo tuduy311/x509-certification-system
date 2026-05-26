@@ -13,7 +13,7 @@ from app.core import crypto_utils
 router = APIRouter()
 
 @router.post("/generate-keys")
-def generate_personal_keys(
+def generate_personal_keys( 
     req: standards_schemas.KeyCreateRequest,
     current_user: models.User = Depends(deps.get_current_active_user),
     db: Session = Depends(deps.get_db)

@@ -348,6 +348,10 @@ def renew_certificate(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    # Mark old certificate as revoked
+    cert.status = models.CertStatus.REVOKED
+    db.add(cert)
+
     new_cert = models.Certificate(
         request_id=cert_req.id,
         user_id=cert.user_id,
@@ -361,7 +365,7 @@ def renew_certificate(
     db.commit()
     db.refresh(new_cert)
     
-    deps.log_activity(db, action="CERTIFICATE_RENEWAL_APPROVED", details=f"Old CertID: {cert.id}, New Serial: {serial_num}", user_id=current_user.id)
+    deps.log_activity(db, action="CERTIFICATE_RENEWAL_APPROVED", details=f"Old CertID: {cert.id} (revoked), New Serial: {serial_num}", user_id=current_user.id)
     return new_cert
 # =========================================================================
 

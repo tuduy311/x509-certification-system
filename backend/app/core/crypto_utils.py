@@ -127,7 +127,6 @@ def root_ca_key_exists() -> bool:
     """Check whether a root CA private key exists in key_CA/."""
     return os.path.exists(ROOT_KEY_PATH)
 
-
 def root_ca_cert_exists() -> bool:
     """Check whether a root CA certificate exists in cert_CA/."""
     return os.path.exists(ROOT_CERT_PATH)

@@ -143,6 +143,7 @@ def get_root_ca():
         )
     with open(ROOT_CERT_PATH, "rb") as f:
         cert = x509.load_pem_x509_certificate(f.read(), default_backend())
+        
     return private_key, cert
 
 def generate_csr(private_key, subject_dict: dict, hash_alg: str = "SHA256"):
@@ -171,7 +172,7 @@ def sign_csr(csr_pem: str, validity_days: int = 365, hash_alg: str = "SHA256"):
         
     csr = x509.load_pem_x509_csr(csr_pem.encode("utf-8"), default_backend())
     if not csr.is_signature_valid:
-         raise Exception("CSR signature is invalid")
+        raise Exception("CSR signature is invalid")
          
     cert = x509.CertificateBuilder().subject_name(
         csr.subject

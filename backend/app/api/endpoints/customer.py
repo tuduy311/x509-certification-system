@@ -80,6 +80,7 @@ def list_my_keys(
     return db.query(models.KeyManagement).filter(models.KeyManagement.user_id == current_user.id).all()
 
 
+# ======================================
 @router.post("/generate-csr")
 def generate_csr_from_form(
     req: schemas.CSRCreate,
@@ -151,9 +152,10 @@ def generate_csr_from_form(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate CSR: {str(e)}")
+# ======================================
 
 
-@router.post("/request-certificate", response_model=schemas.CertificateRequestOut)
+@router.post("/request-certificate", response_model=schemas.CertificateRequestOut, status_code=201)
 def request_certificate(
     csr_data: schemas.CSRUpload,
     current_user: models.User = Depends(deps.get_current_active_user),
@@ -161,8 +163,41 @@ def request_certificate(
 ) -> Any:
     """
     Submit a CSR to request an X.509 certificate.
+
+    Backend validation steps:
+    1. Parse the PEM-encoded CSR.
+    2. Verify the CSR self-signature (hash_A == hash_B):
+       hash_A = digest of the TBSCertificationRequest body.
+       hash_B = decrypted signature using the public key embedded in the CSR.
+       This confirms the submitter owns the private key and the data was not tampered.
+    3. If invalid → 400 (not saved to DB).
+    4. If valid   → save as PENDING and return 201.
     """
-    # Simple validation if CSR is valid format could be added here
+    from cryptography import x509 as _x509
+    from cryptography.hazmat.backends import default_backend as _backend
+    from cryptography.exceptions import InvalidSignature
+
+    # ── 1. Parse CSR ──────────────────────────────────────────────────────────
+    try:
+        csr = _x509.load_pem_x509_csr(csr_data.csr_pem.encode("utf-8"), _backend())
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid CSR format: cannot parse PEM data. ({e})"
+        )
+
+    # ── 2. Verify self-signature (hash_A == hash_B) ───────────────────────────
+    if not csr.is_signature_valid:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "CSR signature verification failed: the signature does not match the "
+                "public key embedded in the CSR. "
+                "Please ensure the CSR was signed with the correct private key."
+            )
+        )
+
+    # ── 3. Save as PENDING ────────────────────────────────────────────────────
     cert_req = models.CertificateRequest(
         user_id=current_user.id,
         csr_pem=csr_data.csr_pem,
@@ -171,7 +206,16 @@ def request_certificate(
     db.add(cert_req)
     db.commit()
     db.refresh(cert_req)
+
+    deps.log_activity(
+        db,
+        action="CERTIFICATE_REQUESTED",
+        details=f"CSR submitted by user {current_user.username}, RequestID: {cert_req.id}",
+        user_id=current_user.id
+    )
+
     return cert_req
+
 
 @router.get("/my-requests", response_model=List[schemas.CertificateRequestOut])
 def list_my_requests(

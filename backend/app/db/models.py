@@ -34,6 +34,8 @@ class CertificateRequest(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     csr_pem = Column(Text)
     status = Column(Enum(CertStatus), default=CertStatus.PENDING)
+    rejection_reason = Column(String, nullable=True)
+    rejection_details = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     owner = relationship("User", back_populates="certificate_requests")

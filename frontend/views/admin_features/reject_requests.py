@@ -9,6 +9,10 @@ def reject_requests():
     # Initialize session state
     if "rejected_requests" not in st.session_state:
         st.session_state.rejected_requests = []
+    if "admin_requests_cache" not in st.session_state:
+        st.session_state.admin_requests_cache = None
+    if "admin_certificates_cache" not in st.session_state:
+        st.session_state.admin_certificates_cache = None
 
     # ── Back button (with top margin to avoid Streamlit toolbar overlap) ──
     st.markdown("<div style='margin-top:60px'></div>", unsafe_allow_html=True)
@@ -22,18 +26,20 @@ def reject_requests():
     st.markdown("Review and reject pending certificate requests with detailed reasoning")
     st.divider()
 
-    # ── Fetch from backend ──
-    try:
-        all_requests = api_client.get_all_requests()
-    except http_requests.ConnectionError:
-        st.error("❌ Cannot connect to backend.")
-        return
-    except http_requests.HTTPError as e:
-        st.error(f"Backend error: {e}")
-        return
+    # ── Fetch requests and certificates from backend using cache ──
+    if st.session_state.admin_requests_cache is None or st.session_state.admin_certificates_cache is None:
+        try:
+            st.session_state.admin_requests_cache = api_client.get_all_requests()
+            st.session_state.admin_certificates_cache = api_client.get_all_certificates()
+        except http_requests.ConnectionError:
+            st.error("❌ Cannot connect to backend.")
+            return
+        except http_requests.HTTPError as e:
+            st.error(f"Backend error: {e}")
+            return
 
+    all_requests = st.session_state.admin_requests_cache
     pending_requests = [r for r in all_requests if r["status"] == "pending"]
-
     # Display stats
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -117,7 +123,7 @@ def reject_requests():
 
     # Rejection Warning
     st.warning(
-        f"⚠️ **Warning:** This action will reject request #{selected_request['id']} "
+        f"**Warning:** This action will reject request #{selected_request['id']} "
         f"and notify user {selected_request['user_id']}. "
         f"The user will need to resubmit with corrections.",
         icon="⚠️"
@@ -151,7 +157,11 @@ def reject_requests():
             disabled=not (confirm and details_provided and additional_details.strip())
         ):
             try:
-                api_client.reject_request(selected_request["id"])
+                api_client.reject_request(
+                    request_id=selected_request["id"],
+                    rejection_reason=rejection_reason,
+                    rejection_details=additional_details
+                )
 
                 rejection_record = {
                     "request_id": selected_request["id"],
@@ -161,6 +171,10 @@ def reject_requests():
                     "rejected_at": datetime.now()
                 }
                 st.session_state.rejected_requests.append(rejection_record)
+
+                # Invalidate caches so we fetch fresh data from backend on the next run
+                st.session_state.admin_requests_cache = None
+                st.session_state.admin_certificates_cache = None
 
                 st.success(
                     f"✅ Request #{selected_request['id']} rejected successfully!\n\n"

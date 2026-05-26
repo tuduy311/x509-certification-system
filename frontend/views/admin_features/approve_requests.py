@@ -8,6 +8,10 @@ def approve_requests():
     # Initialize session state
     if "approval_data" not in st.session_state:
         st.session_state.approval_data = {}
+    if "admin_requests_cache" not in st.session_state:
+        st.session_state.admin_requests_cache = None
+    if "admin_certificates_cache" not in st.session_state:
+        st.session_state.admin_certificates_cache = None
 
     # ── Back to Dashboard button (with top margin to avoid Streamlit toolbar overlap) ──
     st.markdown("<div style='margin-top:60px'></div>", unsafe_allow_html=True)
@@ -20,34 +24,38 @@ def approve_requests():
     st.markdown("Manage and approve pending X.509 certificate requests")
     st.divider()
 
-    # ── Fetch requests from backend ──
-    try:
-        all_requests = api_client.get_all_requests()
-    except http_requests.ConnectionError:
-        st.error("❌ Cannot connect to backend. Is the server running at http://localhost:8000?")
-        return
-    except http_requests.HTTPError as e:
-        st.error(f"Backend error: {e}")
-        return
+    # ── Fetch requests and certificates from backend using cache ──
+    if st.session_state.admin_requests_cache is None or st.session_state.admin_certificates_cache is None:
+        try:
+            st.session_state.admin_requests_cache = api_client.get_all_requests()
+            st.session_state.admin_certificates_cache = api_client.get_all_certificates()
+        except http_requests.ConnectionError:
+            st.error("❌ Cannot connect to backend. Is the server running at http://localhost:8000?")
+            return
+        except http_requests.HTTPError as e:
+            st.error(f"Backend error: {e}")
+            return
 
-    # Filter PENDING requests only
+    all_requests = st.session_state.admin_requests_cache
     pending_requests = [r for r in all_requests if r["status"] == "pending"]
+
+    # Display stats
+    # Display stats using all_certificates (printed even if no pending requests)
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("🔄 Pending", len(pending_requests))
+    with col2:
+        st.metric("❌ Rejected", len([r for r in all_requests if r["status"] == "rejected"]))
+    with col3:
+        st.metric("✅ Approved", len([r for r in all_requests if r["status"] == "approved"]))
+    with col4:
+        st.metric("📊 Total", len(all_requests))
+
+    st.divider()
 
     if not pending_requests:
         st.info("ℹ️ No pending certificate requests at the moment.")
         return
-
-    # Stats
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("🔄 Total Pending", len(pending_requests))
-    with col2:
-        st.metric("📋 Total Requests", len(all_requests))
-    with col3:
-        approved_count = len([r for r in all_requests if r["status"] == "approved"])
-        st.metric("✅ Approved", approved_count)
-
-    st.divider()
 
     # Request Selection
     st.subheader("Select Request")
@@ -88,11 +96,14 @@ def approve_requests():
     # Approval Configuration
     st.subheader("Approval Configuration")
 
-    # Fetch configuration for default settings
-    try:
-        sys_config = api_client.get_config()
-    except Exception:
-        sys_config = {}
+    # Fetch configuration for default settings using cache
+    if "sys_config_cache" not in st.session_state:
+        try:
+            st.session_state.sys_config_cache = api_client.get_config()
+        except Exception:
+            st.session_state.sys_config_cache = {}
+            
+    sys_config = st.session_state.sys_config_cache
 
     col1, col2 = st.columns(2)
 
@@ -137,6 +148,10 @@ def approve_requests():
                 "approved_at": datetime.now(),
                 "cert_id": result.get("id")
             }
+            # Invalidate caches so we fetch fresh data from backend on the next run
+            st.session_state.admin_requests_cache = None
+            st.session_state.admin_certificates_cache = None
+
             st.success(
                 f"✅ Certificate Request #{selected_request['id']} approved successfully!\n\n"
                 f"**New Certificate ID:** {result.get('id')}\n"

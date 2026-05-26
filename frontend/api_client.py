@@ -233,12 +233,15 @@ def approve_request(request_id: int, validity_days: int = 365, hash_alg: str = "
     })
 
 
-def reject_request(request_id: int) -> dict:
+def reject_request(request_id: int, rejection_reason: str, rejection_details: str) -> dict:
     """
     POST /api/admin/requests/{request_id}/reject
     Returns: CertificateRequestOut dict
     """
-    return _post(f"/api/admin/requests/{request_id}/reject")
+    return _post(f"/api/admin/requests/{request_id}/reject", json={
+        "rejection_reason": rejection_reason,
+        "rejection_details": rejection_details
+    })
 
 
 def admin_revoke_certificate(cert_id: int) -> dict:

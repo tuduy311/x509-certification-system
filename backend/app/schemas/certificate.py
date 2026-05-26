@@ -19,10 +19,16 @@ class CertificateRequestOut(BaseModel):
     user_id: int
     csr_pem: str
     status: CertStatus
+    rejection_reason: Optional[str] = None
+    rejection_details: Optional[str] = None
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+class CertificateRequestReject(BaseModel):
+    rejection_reason: str
+    rejection_details: str
 
 class CertificateOut(BaseModel):
     id: int

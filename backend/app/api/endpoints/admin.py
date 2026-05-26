@@ -153,6 +153,7 @@ def approve_request(
 @router.post("/requests/{request_id}/reject", response_model=schemas.CertificateRequestOut)
 def reject_request(
     request_id: int,
+    reject_data: schemas.CertificateRequestReject,
     current_user: models.User = Depends(deps.get_current_admin_user),
     db: Session = Depends(deps.get_db)
 ) -> Any:
@@ -162,11 +163,17 @@ def reject_request(
     cert_req = db.query(models.CertificateRequest).filter(models.CertificateRequest.id == request_id).first()
     if not cert_req:
         raise HTTPException(status_code=404, detail="Request not found")
+    if cert_req.status != models.CertStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Request already processed")
     
     cert_req.status = models.CertStatus.REJECTED
+    cert_req.rejection_reason = reject_data.rejection_reason
+    cert_req.rejection_details = reject_data.rejection_details
     db.add(cert_req)
     db.commit()
     db.refresh(cert_req)
+    
+    deps.log_activity(db, action="CERTIFICATE_REJECTED", details=f"ReqID: {cert_req.id}, Reason: {reject_data.rejection_reason}", user_id=current_user.id)
     return cert_req
 
 @router.post("/certificates/{cert_id}/revoke", response_model=schemas.CertificateOut)

@@ -73,9 +73,8 @@ def change_password():
 
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-        if st.button("🔐 Update Password", type="primary"):
+        if st.button("🔐 Change Password", type="primary"):
             errors = []
-
             if not current_password:
                 errors.append("Current password is required")
             if not new_password:
@@ -84,30 +83,53 @@ def change_password():
                 errors.append("Password confirmation is required")
             if new_password and confirm_password and new_password != confirm_password:
                 errors.append("Passwords do not match")
-            if new_password:
-                is_valid, msg = _validate_password(new_password)
-                if not is_valid:
-                    errors.append(msg)
             if current_password and new_password and current_password == new_password:
                 errors.append("New password cannot be the same as current password")
+            if new_password:
+                if len(new_password) < 8:
+                    errors.append("Password must be at least 8 characters long")
+                if not any(c.isupper() for c in new_password):
+                    errors.append("Password must contain uppercase letters")
+                if not any(c.islower() for c in new_password):
+                    errors.append("Password must contain lowercase letters")
+                if not any(c.isdigit() for c in new_password):
+                    errors.append("Password must contain numbers")
+                if not any(c in "!@#$%^&*" for c in new_password):
+                    errors.append("Password must contain special characters (!@#$%^&*)")
 
             if errors:
                 for error in errors:
                     st.error(f"❌ {error}")
             else:
                 try:
-                    api_client.change_password(new_password)
+                    api_client.change_password(current_password, new_password, confirm_password)
                     st.success(
-                        f"✅ Password changed successfully!\n\n"
+                        f"Password changed successfully!\n\n"
                         f"**Details:**\n"
                         f"- Changed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-                        f"- Admin: {st.session_state.username}\n\n"
+                        f"- Admin: {st.session_state.get('username', 'unknown')}\n\n"
                         f"⚠️ Please log out and log in again with your new password.",
                         icon="✅"
                     )
                 except http_requests.HTTPError as e:
-                    detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                    st.error(f"❌ Backend error: {detail}")
+                    if e.response is not None:
+                        if e.response.status_code == 422:
+                            try:
+                                validation_errors = e.response.json().get("detail", [])
+                                for err in validation_errors:
+                                    field = err.get("loc", ["body"])[-1]
+                                    msg = err.get("msg", "Invalid format.")
+                                    st.error(f"⚠️ Validation Error ({field}): {msg}")
+                            except Exception:
+                                st.error("❌ Input data format is not accepted by the server.")
+                        else:
+                            try:
+                                error_detail = e.response.json().get("detail", "Bad Request")
+                                st.error(f"❌ {error_detail}")
+                            except Exception:
+                                st.error(f"❌ Error {e.response.status_code}: {e.response.text}")
+                    else:
+                        st.error(f"❌ Error: {str(e)}")
                 except http_requests.ConnectionError:
                     st.error("❌ Cannot connect to backend.")
 

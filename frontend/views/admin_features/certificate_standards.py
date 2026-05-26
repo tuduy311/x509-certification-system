@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import datetime
 import json
-import api_client
+import api.api_client as api_client
 import requests as http_requests
 
 def _load_config() -> dict:

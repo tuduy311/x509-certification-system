@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime
-import api_client
+import api.api_client as api_client
 import requests as http_requests
 
 
@@ -8,10 +8,10 @@ def approve_requests():
     # Initialize session state
     if "approval_data" not in st.session_state:
         st.session_state.approval_data = {}
-    if "admin_requests_cache" not in st.session_state:
-        st.session_state.admin_requests_cache = None
-    if "admin_certificates_cache" not in st.session_state:
-        st.session_state.admin_certificates_cache = None
+    # if "admin_requests_cache" not in st.session_state:
+    #     st.session_state.admin_requests_cache = None
+    # if "admin_certificates_cache" not in st.session_state:
+    #     st.session_state.admin_certificates_cache = None
 
     # ── Back to Dashboard button (with top margin to avoid Streamlit toolbar overlap) ──
     st.markdown("<div style='margin-top:60px'></div>", unsafe_allow_html=True)
@@ -25,18 +25,19 @@ def approve_requests():
     st.divider()
 
     # ── Fetch requests and certificates from backend using cache ──
-    if st.session_state.admin_requests_cache is None or st.session_state.admin_certificates_cache is None:
-        try:
-            st.session_state.admin_requests_cache = api_client.get_all_requests()
-            st.session_state.admin_certificates_cache = api_client.get_all_certificates()
-        except http_requests.ConnectionError:
-            st.error("❌ Cannot connect to backend. Is the server running at http://localhost:8000?")
-            return
-        except http_requests.HTTPError as e:
-            st.error(f"Backend error: {e}")
-            return
+    # if st.session_state.admin_requests_cache is None or st.session_state.admin_certificates_cache is None:
+    try:
+        st.session_state.admin_requests_cache = api_client.get_all_requests()
+        st.session_state.admin_certificates_cache = api_client.get_all_certificates()
+    except http_requests.ConnectionError:
+        st.error("❌ Cannot connect to backend. Is the server running at http://localhost:8000?")
+        return
+    except http_requests.HTTPError as e:
+        st.error(f"Backend error: {e}")
+        return
 
     all_requests = st.session_state.admin_requests_cache
+
     pending_requests = [r for r in all_requests if r["status"] == "pending"]
 
     # Display stats
@@ -96,14 +97,11 @@ def approve_requests():
     # Approval Configuration
     st.subheader("Approval Configuration")
 
-    # Fetch configuration for default settings using cache
-    if "sys_config_cache" not in st.session_state:
-        try:
-            st.session_state.sys_config_cache = api_client.get_config()
-        except Exception:
-            st.session_state.sys_config_cache = {}
-            
-    sys_config = st.session_state.sys_config_cache
+    # Fetch configuration for default settings
+    try:
+        sys_config = api_client.get_config()
+    except Exception:
+        sys_config = {}
 
     col1, col2 = st.columns(2)
 

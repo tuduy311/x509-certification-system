@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime
-import api_client
+import api.api_client as api_client
 import requests as http_requests
 
 
@@ -9,10 +9,10 @@ def reject_requests():
     # Initialize session state
     if "rejected_requests" not in st.session_state:
         st.session_state.rejected_requests = []
-    if "admin_requests_cache" not in st.session_state:
-        st.session_state.admin_requests_cache = None
-    if "admin_certificates_cache" not in st.session_state:
-        st.session_state.admin_certificates_cache = None
+    # if "admin_requests_cache" not in st.session_state:
+    #     st.session_state.admin_requests_cache = None
+    # if "admin_certificates_cache" not in st.session_state:
+    #     st.session_state.admin_certificates_cache = None
 
     # ── Back button (with top margin to avoid Streamlit toolbar overlap) ──
     st.markdown("<div style='margin-top:60px'></div>", unsafe_allow_html=True)
@@ -27,16 +27,16 @@ def reject_requests():
     st.divider()
 
     # ── Fetch requests and certificates from backend using cache ──
-    if st.session_state.admin_requests_cache is None or st.session_state.admin_certificates_cache is None:
-        try:
-            st.session_state.admin_requests_cache = api_client.get_all_requests()
-            st.session_state.admin_certificates_cache = api_client.get_all_certificates()
-        except http_requests.ConnectionError:
-            st.error("❌ Cannot connect to backend.")
-            return
-        except http_requests.HTTPError as e:
-            st.error(f"Backend error: {e}")
-            return
+    # if st.session_state.admin_requests_cache is None or st.session_state.admin_certificates_cache is None:
+    try:
+        st.session_state.admin_requests_cache = api_client.get_all_requests()
+        st.session_state.admin_certificates_cache = api_client.get_all_certificates()
+    except http_requests.ConnectionError:
+        st.error("❌ Cannot connect to backend.")
+        return
+    except http_requests.HTTPError as e:
+        st.error(f"Backend error: {e}")
+        return
 
     all_requests = st.session_state.admin_requests_cache
     pending_requests = [r for r in all_requests if r["status"] == "pending"]
@@ -177,7 +177,7 @@ def reject_requests():
                 st.session_state.admin_certificates_cache = None
 
                 st.success(
-                    f"✅ Request #{selected_request['id']} rejected successfully!\n\n"
+                    f"Request #{selected_request['id']} rejected successfully!\n\n"
                     f"**Details:**\n"
                     f"- User ID: {selected_request['user_id']}\n"
                     f"- Rejection Reason: {rejection_reason}\n"

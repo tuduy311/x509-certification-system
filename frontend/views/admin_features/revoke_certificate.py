@@ -1,14 +1,14 @@
 import streamlit as st
 from datetime import datetime
-import api_client
+import api.api_client as api_client
 import requests as http_requests
 
 
 def revoke_certificate():
 
     # Initialize session state
-    if "revoked_certs" not in st.session_state:
-        st.session_state.revoked_certs = []
+    if "admin_revoked_certs" not in st.session_state:
+        st.session_state.admin_revoked_certs = []
 
     # ── Back button (with top margin to avoid Streamlit toolbar overlap) ──
     st.markdown("<div style='margin-top:60px'></div>", unsafe_allow_html=True)
@@ -120,7 +120,7 @@ def revoke_certificate():
 
     # Warning
     st.warning(
-        f"⚠️ **Warning:** This action will immediately revoke certificate #{selected_cert['id']}. "
+        f"**Warning:** This action will immediately revoke certificate #{selected_cert['id']}. "
         f"This certificate will no longer be valid and cannot be undone. "
         f"Users depending on this certificate will be affected.",
         icon="⚠️"
@@ -152,7 +152,7 @@ def revoke_certificate():
                     "details": additional_details,
                     "revoked_at": datetime.now()
                 }
-                st.session_state.revoked_certs.append(revocation_record)
+                st.session_state.admin_revoked_certs.append(revocation_record)
                 st.success(
                     f"✅ Certificate #{selected_cert['id']} revoked successfully!\n\n"
                     f"**Details:**\n"
@@ -187,8 +187,8 @@ def revoke_certificate():
 
     with col2:
         st.write("**Previously Revoked (this session):**")
-        if st.session_state.revoked_certs:
-            for revoked in st.session_state.revoked_certs:
+        if st.session_state.admin_revoked_certs:
+            for revoked in st.session_state.admin_revoked_certs:
                 st.write(f"- Cert #{revoked['cert_id']} ({revoked['reason']}) ✅")
         else:
             st.write("- None yet")

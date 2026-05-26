@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime
-import api_client
+import api.api_client as api_client
 import requests as http_requests
 
 
@@ -19,8 +19,8 @@ REVOCATION_REASONS = [
 def revoke_certificate():
 
     # Initialize session state
-    if "revoked_certs" not in st.session_state:
-        st.session_state.revoked_certs = []
+    if "user_revoked_certs" not in st.session_state:
+        st.session_state.user_revoked_certs = []
 
     # ── Back button (with top margin to avoid Streamlit toolbar overlap) ──
     st.markdown("<div style='margin-top:60px'></div>", unsafe_allow_html=True)
@@ -152,7 +152,7 @@ def revoke_certificate():
                         "status": result["status"],
                         "timestamp": datetime.now()
                     }
-                    st.session_state.revoked_certs.append(new_revocation)
+                    st.session_state.user_revoked_certs.append(new_revocation)
 
                     st.success(f"""
                     ✅ Revocation Request Submitted Successfully!
@@ -175,22 +175,22 @@ def revoke_certificate():
     with tab2:
         st.subheader("Revocation Request History (This Session)")
 
-        if not st.session_state.revoked_certs:
+        if not st.session_state.user_revoked_certs:
             st.info("No revocation requests submitted this session.")
         else:
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("⏳ Pending", len([r for r in st.session_state.revoked_certs if r["status"] == "pending"]))
+                st.metric("⏳ Pending", len([r for r in st.session_state.user_revoked_certs if r["status"] == "pending"]))
             with col2:
-                st.metric("✅ Approved", len([r for r in st.session_state.revoked_certs if r["status"] == "approved"]))
+                st.metric("✅ Approved", len([r for r in st.session_state.user_revoked_certs if r["status"] == "approved"]))
             with col3:
-                st.metric("❌ Rejected", len([r for r in st.session_state.revoked_certs if r["status"] == "rejected"]))
+                st.metric("❌ Rejected", len([r for r in st.session_state.user_revoked_certs if r["status"] == "rejected"]))
             with col4:
-                st.metric("📊 Total", len(st.session_state.revoked_certs))
+                st.metric("📊 Total", len(st.session_state.user_revoked_certs))
 
             st.divider()
 
-            for req in reversed(st.session_state.revoked_certs):
+            for req in reversed(st.session_state.user_revoked_certs):
                 status_icon = "🟢" if req["status"] == "approved" else ("🟠" if req["status"] == "pending" else "🔴")
                 with st.expander(f"{status_icon} Request #{req['id']} - Serial {req['serial_number']} ({req['status'].upper()})"):
                     col1, col2, col3 = st.columns(3)

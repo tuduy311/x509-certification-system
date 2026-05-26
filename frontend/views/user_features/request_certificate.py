@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime
-import api_client
+import api.api_client as api_client
 import requests as http_requests
 
 # CSR generation is done entirely on the frontend to avoid sending the private key to the backend

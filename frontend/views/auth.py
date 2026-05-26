@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 from styles.auth_css import AUTH_CSS, LEFT_PANEL
-import api_client
+import api.api_client as api_client
 
 
 def auth_page():

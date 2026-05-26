@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import api_client
+import api.api_client as api_client
 import requests as http_requests
 
 def issued_certificates():

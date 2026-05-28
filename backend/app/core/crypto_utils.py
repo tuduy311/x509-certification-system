@@ -8,17 +8,22 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from app.core.config import settings
 
-# ── Directory-based storage (separate key_CA and cert_CA folders) ──────────
 _BASE_DIR = os.path.dirname(os.path.abspath(settings.ROOT_CA_PATH))
-KEY_CA_DIR  = os.path.join(_BASE_DIR, "key_CA")
-CERT_CA_DIR = os.path.join(_BASE_DIR, "cert_CA")
+
+MANAGEMENT_DIR = os.path.join(_BASE_DIR, "Management")
+
+KEY_CA_DIR  = os.path.join(MANAGEMENT_DIR, "key_CA")
+CERT_CA_DIR = os.path.join(MANAGEMENT_DIR, "cert_CA")
+CRL_DIR     = os.path.join(MANAGEMENT_DIR, "crl")
 
 ROOT_KEY_PATH  = os.path.join(KEY_CA_DIR,  "root_ca.key")
 ROOT_CERT_PATH = os.path.join(CERT_CA_DIR, "root_ca.crt")
+CRL_FILE_PATH  = os.path.join(CRL_DIR,     "crl.pem")
 
 # Ensure directories exist at import time
 os.makedirs(KEY_CA_DIR,  exist_ok=True)
 os.makedirs(CERT_CA_DIR, exist_ok=True)
+os.makedirs(CRL_DIR,     exist_ok=True)
 
 def generate_key_pair(algorithm: str | int = "RSA", key_size: int = 2048):
     algo = algorithm.upper()
@@ -218,16 +223,100 @@ def generate_crl(revoked_certs_serials: list, validity_days: int = 30, hash_alg:
     )
     return crl.public_bytes(serialization.Encoding.PEM).decode("utf-8")
 
-def parse_certificate(cert_pem: str):
-    cert = x509.load_pem_x509_certificate(cert_pem.encode("utf-8"), default_backend())
-    subject = {attr.oid._name: attr.value for attr in cert.subject}
-    issuer = {attr.oid._name: attr.value for attr in cert.issuer}
-    
+def _get_name_attributes(name_obj) -> dict:
+    """Extract CN, O, OU from a Name object. Returns '<Not Part Of Certificate>' when missing."""
+    from cryptography.x509.oid import NameOID as _NameOID
+    def _get(oid):
+        attrs = name_obj.get_attributes_for_oid(oid)
+        return attrs[0].value if attrs else "<Not Part Of Certificate>"
     return {
-        "serial_number": str(cert.serial_number),
-        "subject": subject,
-        "issuer": issuer,
-        "not_valid_before": cert.not_valid_before,
-        "not_valid_after": cert.not_valid_after
+        "Common Name (CN)": _get(_NameOID.COMMON_NAME),
+        "Organization (O)": _get(_NameOID.ORGANIZATION_NAME),
+        "Organizational Unit (OU)": _get(_NameOID.ORGANIZATIONAL_UNIT_NAME),
     }
+
+
+def parse_certificate(cert_pem: str) -> dict:
+    """
+    Parse a PEM certificate and return a browser-style structured dict:
+      - Basic Details   (Version, Serial Number)
+      - Issued To       (CN, O, OU of subject)
+      - Issued By       (CN, O, OU of issuer)
+      - Validity Period (Issued On, Expires On)
+      - SHA-256 Fingerprints (Certificate, Public Key)
+    """
+    cert = x509.load_pem_x509_certificate(cert_pem.encode("utf-8"), default_backend())
+
+    # Date format: "Saturday, May 09, 2026 at 06:52:00 AM"
+    fmt = lambda dt: dt.strftime("%A, %B %d, %Y at %I:%M:%S %p")
+
+    # Certificate fingerprint (SHA-256 of the full DER)
+    cert_fp = cert.fingerprint(hashes.SHA256()).hex()
+
+    # Public key fingerprint (SHA-256 of SPKI DER)
+    pub_der = cert.public_key().public_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    pubkey_fp = hashes.Hash(hashes.SHA256())
+    pubkey_fp.update(pub_der)
+    pubkey_fp = pubkey_fp.finalize().hex()
+
+    # Serial number — uppercase hex, no "0x" prefix
+    serial_hex = hex(cert.serial_number).upper().replace("0X", "")
+
+    # Try to read validity dates (UTC-aware or naive)
+    try:
+        not_before = cert.not_valid_before_utc
+        not_after  = cert.not_valid_after_utc
+    except AttributeError:
+        # cryptography < 42 fallback
+        not_before = cert.not_valid_before
+        not_after  = cert.not_valid_after
+
+    return {
+        "Basic Details": {
+            "Version": cert.version.name.upper(),
+            "Serial Number": serial_hex,
+        },
+        "Issued To": _get_name_attributes(cert.subject),
+        "Issued By": _get_name_attributes(cert.issuer),
+        "Validity Period": {
+            "Issued On":  fmt(not_before),
+            "Expires On": fmt(not_after),
+        },
+        "SHA-256 Fingerprints": {
+            "Certificate": cert_fp,
+            "Public Key":  pubkey_fp,
+        },
+    }
+
+
+def write_crl_file(crl_pem: str):
+    """Write the CRL PEM string to Management/crl/crl.pem file."""
+    with open(CRL_FILE_PATH, "w", encoding="utf-8") as f:
+        f.write(crl_pem)
+
+
+def update_crl_cache(db, validity_days: int = None, hash_alg: str = None) -> str:
+    """
+    Fetch all revoked certificates from the database, generate a new CRL,
+    save it to Management/crl/crl.pem and return the PEM string.
+    """
+    from app.db import models
+    
+    if validity_days is None:
+        cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == "crl_update_days").first()
+        validity_days = int(cfg.value) if cfg else 30
+    if hash_alg is None:
+        cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == "hash_algorithm").first()
+        hash_alg = cfg.value if cfg else "SHA256"
+        
+    revoked_certs = db.query(models.Certificate).filter(models.Certificate.status == models.CertStatus.REVOKED).all()
+    serials = [c.serial_number for c in revoked_certs]
+    
+    crl_pem = generate_crl(serials, validity_days, hash_alg)
+    write_crl_file(crl_pem)
+    return crl_pem
+
 

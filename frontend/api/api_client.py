@@ -6,8 +6,10 @@ from .customer import (
     request_certificate,
     get_my_requests,
     get_my_certificates,
+    get_revoked_certificates,
     request_revoke_certificate,
     parse_certificate,
+    get_certificate_info,
     get_crl
 )
 
@@ -20,6 +22,7 @@ from .admin import (
     reject_request,
     admin_revoke_certificate,
     get_all_certificates,
+    get_certificate_info as get_admin_certificate_info,
     get_config,
     update_config,
     reset_config_to_defaults,

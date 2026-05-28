@@ -78,6 +78,14 @@ def get_all_certificates() -> list:
     return _get("/api/admin/certificates")
 
 
+def get_certificate_info(cert_id: int) -> dict:
+    """
+    GET /api/admin/certificates/{cert_id}/info
+    Returns: browser-style parsed certificate info (no PEM sent to client).
+    """
+    return _get(f"/api/admin/certificates/{cert_id}/info")
+
+
 def get_config() -> dict:
     """
     GET /api/admin/config

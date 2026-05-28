@@ -57,6 +57,14 @@ def get_my_certificates() -> list:
     return _get("/api/customer/my-certificates")
 
 
+def get_revoked_certificates() -> list:
+    """
+    GET /api/customer/revoked-certificates
+    Returns: List[CertificateOut] — all REVOKED certs in the system (public CRL info).
+    """
+    return _get("/api/customer/revoked-certificates")
+
+
 def request_revoke_certificate(cert_id: int, reason: str) -> dict:
     """
     POST /api/customer/certificates/{cert_id}/request-revoke
@@ -78,10 +86,17 @@ def parse_certificate(cert_pem: str) -> dict:
     return _post("/api/customer/parse-certificate", json={"cert_pem": cert_pem})
 
 
+def get_certificate_info(cert_id: int) -> dict:
+    """
+    GET /api/customer/certificates/{cert_id}/info
+    Returns: browser-style parsed certificate info (no PEM sent to client)
+    """
+    return _get(f"/api/customer/certificates/{cert_id}/info")
+
+
 def get_crl() -> dict:
     """
     GET /api/customer/crl  (public – no auth needed, but sends if available)
     Returns: {"crl_pem": str}
     """
     return _get("/api/customer/crl")
-

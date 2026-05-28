@@ -14,7 +14,7 @@ def user_dashboard():
                 </div>""", unsafe_allow_html=True)
     st.markdown("---")
 
-    tab1, tab2, tab3 = st.tabs(["⚙️ Settings & Keys", "📜 Certificates", "🔍 Search & CRL"])
+    tab1, tab2, tab3 = st.tabs(["⚙️ Settings & Keys", "📜 Certificates", "🔍 CRL"])
     
     with tab1:
         st.subheader("Settings & Key Management")
@@ -107,22 +107,11 @@ def user_dashboard():
                 st.rerun()
 
     with tab3:
-        st.subheader("Certificate Search & Revocation List")
+        st.subheader("Revocation List")
     
         col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            <div class="admin-card">
-                <div class="admin-title">🔍 Search Certificate</div>
-                <div class="admin-content">Search for certificates by domain, CN, serial number or issuer.</div>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button("Search Certificates", use_container_width=True):
-                st.session_state.current_feature = "search_crl"
-                st.rerun()
                 
-        with col2:
+        with col1:
             st.markdown("""
             <div class="admin-card">
                 <div class="admin-title">📋 View CRL</div>

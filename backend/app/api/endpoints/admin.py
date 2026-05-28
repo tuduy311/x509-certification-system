@@ -193,9 +193,16 @@ def revoke_certificate(
     db.add(cert)
     db.commit()
     db.refresh(cert)
+    
+    # Auto update CRL cache
+    try:
+        crypto_utils.update_crl_cache(db)
+    except Exception as exc:
+        deps.log_activity(db, action="CRL_AUTO_UPDATE_FAILED", details=f"Error: {exc}", user_id=current_user.id)
+        
     return cert
 
-# =========================================================================
+
 @router.get("/certificates", response_model=List[schemas.CertificateOut])
 def list_all_certificates(
     current_user: models.User = Depends(deps.get_current_admin_user),
@@ -207,7 +214,26 @@ def list_all_certificates(
     List all issued X.509 certificates in the system (admin only).
     """
     return db.query(models.Certificate).offset(skip).limit(limit).all()
-# =========================================================================
+
+
+@router.get("/certificates/{cert_id}/info")
+def get_certificate_info(
+    cert_id: int,
+    current_user: models.User = Depends(deps.get_current_admin_user),
+    db: Session = Depends(deps.get_db),
+) -> Any:
+    """
+    Parse any certificate in the system and return browser-style structured info.
+    The PEM is fetched on the backend — the client receives only the parsed fields.
+    """
+    cert = db.query(models.Certificate).filter(models.Certificate.id == cert_id).first()
+    if not cert:
+        raise HTTPException(status_code=404, detail="Certificate not found")
+    try:
+        return crypto_utils.parse_certificate(cert.cert_pem)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse certificate: {str(e)}")
+
 
 # =========================================================================
 # Config
@@ -296,6 +322,13 @@ def approve_revocation_request(
     db.add(cert)
     db.commit()
     db.refresh(cert)
+    
+    # Auto update CRL cache
+    try:
+        crypto_utils.update_crl_cache(db)
+    except Exception as exc:
+        deps.log_activity(db, action="CRL_AUTO_UPDATE_FAILED", details=f"Error: {exc}", user_id=current_user.id)
+        
     return cert
 
 # =========================================================================
@@ -365,6 +398,12 @@ def renew_certificate(
     db.commit()
     db.refresh(new_cert)
     
+    # Auto update CRL cache since the old cert is revoked
+    try:
+        crypto_utils.update_crl_cache(db)
+    except Exception as exc:
+        deps.log_activity(db, action="CRL_AUTO_UPDATE_FAILED", details=f"Error: {exc}", user_id=current_user.id)
+        
     deps.log_activity(db, action="CERTIFICATE_RENEWAL_APPROVED", details=f"Old CertID: {cert.id} (revoked), New Serial: {serial_num}", user_id=current_user.id)
     return new_cert
 # =========================================================================
@@ -384,6 +423,7 @@ def generate_crl_endpoint(
     serials = [c.serial_number for c in revoked_certs]
     try:
         crl_pem = crypto_utils.generate_crl(serials, validity_days, hash_alg)
+        crypto_utils.write_crl_file(crl_pem)
         deps.log_activity(db, action="CRL_GENERATED", details=f"Included {len(serials)} revoked certs", user_id=current_user.id)
         return {"crl_pem": crl_pem}
     except Exception as e:

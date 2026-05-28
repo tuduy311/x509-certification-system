@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str
     
-    ROOT_CA_PATH: str = "./root_ca"
+    ROOT_CA_PATH: str = "./"
     COUNTRY_NAME: str = "VN"
     STATE_OR_PROVINCE_NAME: str = "Hanoi"
     LOCALITY_NAME: str = "Hanoi"

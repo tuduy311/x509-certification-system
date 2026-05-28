@@ -139,55 +139,6 @@ def upload_certificate():
         
         st.divider()
         
-        # Monitoring options
-        st.markdown("**⚙️ Monitoring Options:**")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            enable_expiry_alert = st.checkbox(
-                "Alert when expiring",
-                value=True,
-                key="enable_expiry"
-            )
-            
-            if enable_expiry_alert:
-                alert_days = st.number_input(
-                    "Alert X days before expiry:",
-                    min_value=1,
-                    max_value=365,
-                    value=30,
-                    key="alert_days"
-                )
-        
-        with col2:
-            enable_chain_check = st.checkbox(
-                "Check certificate chain",
-                value=True,
-                key="enable_chain"
-            )
-            
-            enable_revocation_check = st.checkbox(
-                "Check revocation status",
-                value=True,
-                key="enable_revocation"
-            )
-        
-        st.divider()
-        
-        # Upload summary
-        st.markdown(f"""
-        <div style="background-color: #2d3748; border-left: 4px solid #4299e1; border-radius: 5px; padding: 15px; margin: 15px 0;">
-        <div style="font-weight: bold; color: #4299e1; margin-bottom: 10px;">📋 Upload Summary</div>
-        <div style="color: #e0e0e0; font-size: 14px;">
-        <div style="margin: 5px 0;"><strong>Name:</strong> {cert_name if cert_name else 'Not specified'}</div>
-        <div style="margin: 5px 0;"><strong>Domain:</strong> {domain if domain else 'Not specified'}</div>
-        <div style="margin: 5px 0;"><strong>Expiry Alert:</strong> {'✅ Enabled' if enable_expiry_alert else '❌ Disabled'}</div>
-        <div style="margin: 5px 0;"><strong>Monitoring:</strong> Chain: {'✅' if enable_chain_check else '❌'} | Revocation: {'✅' if enable_revocation_check else '❌'}</div>
-        </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
         if st.button(
             "📤 Upload Certificate",
             use_container_width=True,
@@ -204,7 +155,6 @@ def upload_certificate():
                     "domain": domain,
                     "filename": uploaded_file.name if upload_method == "File Upload" else "pasted_cert.pem",
                     "timestamp": datetime.now(),
-                    "monitoring": enable_expiry_alert or enable_chain_check or enable_revocation_check
                 }
                 st.session_state.uploaded_certs.append(new_upload)
                 
@@ -244,9 +194,9 @@ def upload_certificate():
             for cert in uploaded_certs:
                 days_left = (cert.valid_to - datetime.now()).days
                 if cert.status == "VALID":
-                    validity = f"✅ {days_left}d left"
+                    validity = f"{days_left}d left"
                 else:
-                    validity = "⏰ Expired"
+                    validity = "Expired"
                 
                 cert_data.append({
                     "Filename": cert.filename,
@@ -301,18 +251,4 @@ def upload_certificate():
                 st.write(f"**Uploaded:** {selected_cert.uploaded_at.strftime('%Y-%m-%d %H:%M:%S')}")
             
             st.divider()
-            
-            # Actions
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                if st.button("📥 Download", key=f"download_upload_{selected_cert.id}"):
-                    st.success(f"Certificate {selected_cert.filename} download started")
-            
-            with col2:
-                if st.button("🔍 Verify Chain", key=f"verify_chain_{selected_cert.id}"):
-                    st.info("Certificate chain verification in progress...")
-            
-            with col3:
-                if st.button("🗑️ Delete", key=f"delete_upload_{selected_cert.id}"):
-                    st.warning(f"Certificate {selected_cert.filename} deleted")
+

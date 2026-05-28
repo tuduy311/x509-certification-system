@@ -54,6 +54,13 @@ class KeyCreateRequest(BaseModel):
     key_size: int
     description: Optional[str] = None
 
+class SavePublicKeyRequest(BaseModel):
+    """Payload for /save-public-key: key pair was generated on the client."""
+    algorithm: str
+    key_size: int
+    pubkey_pem: str
+    description: Optional[str] = None
+
 class AllOptionsOut(BaseModel):
     asymmetric_algorithms: list[AsymmetricAlgorithmOut]
     hash_algorithms: list[HashAlgorithmOut]

@@ -3,6 +3,9 @@ from datetime import datetime
 import api.api_client as api_client
 import requests as http_requests
 
+# Key pair is generated entirely on the client side
+from crypto import generate_key_pair as _crypto_generate_key_pair, serialize_keys
+
 def generate_key_pair():
     # Initialize session state for single-session private key downloads
     if "last_generated_key" not in st.session_state:
@@ -98,17 +101,20 @@ def generate_key_pair():
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("🔨 Generate Key Pair", use_container_width=True, key="btn_generate_key"):
-            with st.spinner("Generating key pair on server..."):
+        if st.button("Generate Key Pair", use_container_width=True, key="btn_generate_key"):
+            with st.spinner("Generating key pair locally and saving public key..."):
                 try:
-                    result = api_client.generate_keys(
+                    # ── 1. Generate on the client (private key never leaves) ──
+                    private_key_obj = _crypto_generate_key_pair(algorithm=algorithm, key_size=key_size)
+                    private_key_pem, public_key_pem = serialize_keys(private_key_obj)
+
+                    # ── 2. Upload only the public key to the backend ───────────
+                    key_record = api_client.save_public_key(
                         algorithm=algorithm,
                         key_size=key_size,
-                        description=key_description
+                        pubkey_pem=public_key_pem,
+                        description=key_description,
                     )
-                    private_key_pem = result["private_key"]
-                    public_key_pem = result["public_key"]
-                    key_record = result["key_record"]
 
                     st.session_state.last_generated_key = {
                         "id": key_record["id"],
@@ -126,6 +132,8 @@ def generate_key_pair():
                 except http_requests.HTTPError as e:
                     detail = e.response.json().get("detail", str(e)) if e.response else str(e)
                     st.error(f"❌ Error: {detail}")
+                except Exception as e:
+                    st.error(f"❌ Key generation failed: {e}")
 
         # Render the result block if a key was generated in this session
         if st.session_state.last_generated_key is not None:

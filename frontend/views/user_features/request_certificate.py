@@ -1,62 +1,10 @@
 import streamlit as st
-from datetime import datetime
 import api.api_client as api_client
 import requests as http_requests
 
-# CSR generation is done entirely on the frontend to avoid sending the private key to the backend
-from cryptography import x509
-from cryptography.x509.oid import NameOID
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa, ec
-from cryptography.hazmat.backends import default_backend
+# CSR is built entirely on the client – private key never leaves this process
+from crypto import build_csr
 
-
-def _build_csr(subject_dict: dict, private_key_pem: str, hash_alg: str = "SHA256") -> str:
-    """
-    Build a CSR locally using the cryptography library.
-    The private key NEVER leaves the frontend (browser process).
-    Returns: CSR in PEM format (str)
-    Raises: ValueError with a human-readable message on any failure.
-    """
-    # Load private key
-    try:
-        private_key = serialization.load_pem_private_key(
-            private_key_pem.encode(), password=None, backend=default_backend()
-        )
-    except Exception as e:
-        raise ValueError(f"Invalid private key: {e}")
-
-    # Select hash algorithm
-    _hash_map = {
-        "SHA256": hashes.SHA256(),
-        "SHA384": hashes.SHA384(),
-        "SHA512": hashes.SHA512(),
-    }
-    digest = _hash_map.get(hash_alg.upper(), hashes.SHA256())
-
-    # Build subject name attributes
-    name_attrs = []
-    if subject_dict.get("country"):
-        name_attrs.append(x509.NameAttribute(NameOID.COUNTRY_NAME, subject_dict["country"][:2].upper()))
-    if subject_dict.get("state"):
-        name_attrs.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, subject_dict["state"]))
-    if subject_dict.get("locality"):
-        name_attrs.append(x509.NameAttribute(NameOID.LOCALITY_NAME, subject_dict["locality"]))
-    if subject_dict.get("organization"):
-        name_attrs.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, subject_dict["organization"]))
-    if subject_dict.get("organizational_unit"):
-        name_attrs.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, subject_dict["organizational_unit"]))
-    if not subject_dict.get("common_name"):
-        raise ValueError("Common Name (CN) is required.")
-    name_attrs.append(x509.NameAttribute(NameOID.COMMON_NAME, subject_dict["common_name"]))
-
-    csr = (
-        x509.CertificateSigningRequestBuilder()
-        .subject_name(x509.Name(name_attrs))
-        .sign(private_key, digest, default_backend())
-    )
-
-    return csr.public_bytes(serialization.Encoding.PEM).decode("utf-8")
 
 
 def clear_success():
@@ -196,7 +144,7 @@ def request_certificate():
                     "organizational_unit": organizational_unit.strip(),
                 }
                 try:
-                    csr_pem = _build_csr(subject, private_key_pem.strip(), hash_alg)
+                    csr_pem = build_csr(subject, private_key_pem.strip(), hash_alg)
                     st.session_state.generated_csr = csr_pem
                     st.session_state.csr_error = None
                     st.success("✅ CSR generated successfully! You can review or edit it below before submitting.")

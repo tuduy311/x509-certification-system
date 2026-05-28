@@ -1,4 +1,5 @@
 import requests
+import streamlit as st
 from .helpers import _get, _post, _put, BASE_URL
 
 
@@ -61,3 +62,12 @@ def get_me() -> dict:
     Returns: UserOut dict
     """
     return _get("/api/auth/me")
+
+
+def logout() -> dict:
+    """
+    POST /api/auth/logout
+    Invalidate the current JWT token by adding it to the blacklist.
+    Returns: {"msg": "Successfully logged out"}
+    """
+    return _post("/api/auth/logout")

@@ -80,10 +80,6 @@ def generate_root_certificate():
 
     st.divider()
 
-    # ── Session metric ──
-    st.metric("📦 Certificates Generated This Session", len(st.session_state.root_cert_history))
-    st.divider()
-
     tab1, tab2 = st.tabs(["📜 Generate Certificate", "📋 Session History"])
 
     # ─────────────────────────────── TAB 1 ────────────────────────────────────

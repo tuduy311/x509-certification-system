@@ -1,7 +1,7 @@
-from .auth import login, register, change_password, get_me
+from .auth import login, register, change_password, get_me, logout
 
 from .customer import (
-    generate_keys,
+    save_public_key,
     get_my_keys,
     request_certificate,
     get_my_requests,

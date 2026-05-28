@@ -4,12 +4,6 @@ from styles.dashboard import Dashboard_CSS
 def user_dashboard():
     st.markdown(Dashboard_CSS, unsafe_allow_html = True)
     
-    # Back button to main login
-    if st.button("← Back to Login"):
-        st.session_state.authenticated = False
-        st.session_state.current_feature = None
-        st.rerun()
-    
     st.divider()
     
     st.markdown(f"""<div class='admin-header'> 
@@ -20,35 +14,14 @@ def user_dashboard():
                 </div>""", unsafe_allow_html=True)
     st.markdown("---")
 
-    tab1, tab2, tab3 = st.tabs(["⚙️ Account & Keys", "📜 Certificates", "🔍 Search & CRL"])
+    tab1, tab2, tab3 = st.tabs(["⚙️ Settings & Keys", "📜 Certificates", "🔍 Search & CRL"])
     
     with tab1:
-        st.subheader("Account & Key Management")
+        st.subheader("Settings & Key Management")
 
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("""
-            <div class="admin-card">
-                <div class="admin-title">👤 Profile & Settings</div>
-                <div class="admin-content">Manage your account information, password, and preferences.</div>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button("Manage Profile", use_container_width=True):
-                st.session_state.current_feature = "profile"
-                st.rerun()
-               
-            st.markdown("""
-            <div class="admin-card">
-                <div class="admin-title">🔑 Generate Key Pair</div>
-                <div class="admin-content">Generate RSA or ECDSA key pairs for certificate signing requests.</div>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button("Generate Keys", use_container_width=True):
-                st.session_state.current_feature = "generate_key_pair"
-                st.rerun()
-                
-        with col2:
             st.markdown("""
             <div class="admin-card">
                 <div class="admin-title">🔒 Change Password</div>
@@ -58,14 +31,15 @@ def user_dashboard():
             if st.button("Change Password", use_container_width=True):
                 st.session_state.current_feature = "profile"
                 st.rerun()
-               
+
+        with col2:   
             st.markdown("""
             <div class="admin-card">
-                <div class="admin-title">📊 My Key Pairs</div>
-                <div class="admin-content">View all your generated and imported key pairs.</div>
+                <div class="admin-title">🔑 Generate Key Pair</div>
+                <div class="admin-content">Generate RSA or ECDSA key pairs for certificate signing requests.</div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("View All Keys", use_container_width=True):
+            if st.button("Generate Keys", use_container_width=True):
                 st.session_state.current_feature = "generate_key_pair"
                 st.rerun()
 
@@ -158,17 +132,5 @@ def user_dashboard():
             if st.button("View Revocation List", use_container_width=True, key="btn_crl_dash"):
                 st.session_state.current_feature = "search_crl"
                 st.rerun()
-                
-    # User stats
-    # st.markdown("---")
-    # col1, col2, col3, col4 = st.columns(4)
-    # with col1:
-    #     st.metric("Active Certificates", 2)
-    # with col2:
-    #     st.metric("Pending Requests", 1)
-    # with col3:
-    #     st.metric("Revoked Certificates", 0)
-    # with col4:
-    #     st.metric("Key Pairs", 3)
            
             

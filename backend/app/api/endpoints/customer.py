@@ -2,7 +2,8 @@ from typing import Any, List
 import hashlib
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
+from cryptography.hazmat.backends import default_backend
 
 from app.api import deps
 from app.db import models
@@ -12,62 +13,64 @@ from app.core import crypto_utils
 
 router = APIRouter()
 
-@router.post("/generate-keys")
-def generate_personal_keys( 
-    req: standards_schemas.KeyCreateRequest,
+@router.post("/save-public-key", response_model=standards_schemas.KeyManagementOut)
+def save_public_key(
+    req: standards_schemas.SavePublicKeyRequest,
     current_user: models.User = Depends(deps.get_current_active_user),
     db: Session = Depends(deps.get_db)
 ) -> Any:
     """
-    Generate, save to DB, and return a new RSA/ECC public/private key pair.
+    Store a public key that was generated client-side.
+
+    The private key is kept exclusively on the client and is never sent here.
+    This endpoint:
+      1. Validates the PEM-encoded public key.
+      2. Computes a SHA-256 fingerprint of the DER-encoded key.
+      3. Saves a KeyManagement record (public key only) and returns it.
     """
+    # ── Validate & parse the PEM public key ──────────────────────────────────
     try:
-        private_key = crypto_utils.generate_key_pair(req.algorithm, req.key_size)
-        
-        # Serialize Private Key to PEM
-        # TraditionalOpenSSL or PKCS8 depending on algorithm
-        # For EC, PKCS8 is cleaner, but let's just use PKCS8 or TraditionalOpenSSL
-        private_pem = private_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.NoEncryption()
+        public_key = load_pem_public_key(req.pubkey_pem.encode(), backend=default_backend())
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid public key PEM: {exc}"
         )
-        
-        # Serialize Public Key to PEM
-        public_key = private_key.public_key()
-        public_pem = public_key.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-        
-        # Calculate public key fingerprint (SHA256 of DER)
-        pub_der = public_key.public_bytes(
-            encoding=serialization.Encoding.DER,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-        fingerprint = hashlib.sha256(pub_der).hexdigest()
-        
-        # Save key record to DB
-        key_record = models.KeyManagement(
-            user_id=current_user.id,
-            algorithm=req.algorithm.upper(),
-            key_size=req.key_size,
-            pubkey_pem=public_pem.decode('utf-8'),
-            fingerprint=fingerprint,
-            description=req.description,
-            status="active"
-        )
-        db.add(key_record)
-        db.commit()
-        db.refresh(key_record)
-        
-        return {
-            "private_key": private_pem.decode('utf-8'),
-            "public_key": public_pem.decode('utf-8'),
-            "key_record": standards_schemas.KeyManagementOut.from_orm(key_record)
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate key pair: {str(e)}")
+
+    # ── Fingerprint ──────────────────────────────────────────────────────────
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+    pub_der = public_key.public_bytes(
+        encoding=Encoding.DER,
+        format=PublicFormat.SubjectPublicKeyInfo
+    )
+    fingerprint = hashlib.sha256(pub_der).hexdigest()
+
+    # ── Persist ──────────────────────────────────────────────────────────────
+    key_record = models.KeyManagement(
+        user_id=current_user.id,
+        algorithm=req.algorithm.upper(),
+        key_size=req.key_size,
+        pubkey_pem=req.pubkey_pem,
+        fingerprint=fingerprint,
+        description=req.description,
+        status="active",
+    )
+    db.add(key_record)
+    db.commit()
+    db.refresh(key_record)
+
+    deps.log_activity(
+        db,
+        action="PUBLIC_KEY_SAVED",
+        details=(
+            f"User {current_user.username} saved a {req.algorithm.upper()}-{req.key_size} "
+            f"public key (fingerprint: {fingerprint[:16]}...)"
+        ),
+        user_id=current_user.id,
+    )
+
+    return key_record
+
 
 @router.get("/my-keys", response_model=List[standards_schemas.KeyManagementOut])
 def list_my_keys(

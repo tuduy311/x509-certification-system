@@ -24,6 +24,7 @@ from views.user_features import (
     search_crl,
     upload_certificate
 )
+import api.api_client as api_client
 
 from styles.theme import Global_CSS
 
@@ -59,11 +60,16 @@ def sidebar():
         st.write(f"User: {st.session_state.username}")
         st.write(f"Role: {st.session_state.role}")
 
-        if st.button("logout"):
-            st.session_state.authenticated = False
-            st.session_state.username = None
-            st.session_state.role = None
-            st.session_state.access_token = None
+        if st.button("🚪 Logout", use_container_width=True):
+            try:
+                api_client.logout()
+            except Exception as e:
+                st.error(f"Backend logout failed: {e}")
+
+            # Clear all session state keys to ensure no data leaks or stale cache remains
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+
             st.rerun()
 
 # ___________ Routing _____________________

@@ -2,16 +2,25 @@ from .helpers import _get, _post, _put, BASE_URL
 
 
 
-def generate_keys(algorithm: str = "RSA", key_size: int = 2048, description: str | None = None) -> dict:
+def save_public_key(
+    algorithm: str,
+    key_size: int,
+    pubkey_pem: str,
+    description: str | None = None,
+) -> dict:
     """
-    POST /api/customer/generate-keys
-    Body: {"algorithm": str, "key_size": int, "description": str}
-    Returns: {"private_key": str, "public_key": str, "key_record": dict}
+    POST /api/customer/save-public-key
+    Body: {"algorithm": str, "key_size": int, "pubkey_pem": str, "description": str|None}
+    Returns: KeyManagementOut dict (public key record – no private key).
+
+    The key pair must be generated on the client first (see frontend/crypto/key_utils.py).
+    Only the public key is sent to the backend.
     """
-    return _post("/api/customer/generate-keys", json={
+    return _post("/api/customer/save-public-key", json={
         "algorithm": algorithm,
         "key_size": key_size,
-        "description": description
+        "pubkey_pem": pubkey_pem,
+        "description": description,
     })
 
 

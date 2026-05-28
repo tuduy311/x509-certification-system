@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from cryptography.hazmat.backends import default_backend
+from datetime import datetime
 
 from app.api import deps
 from app.db import models
@@ -315,4 +316,143 @@ def get_crl(db: Session = Depends(deps.get_db)) -> Any:
         raise HTTPException(status_code=500, detail="Could not retrieve CRL: " + str(e))
 
 
+def parse_monitored_certificate(cert_pem: str) -> dict:
+    """
+    Parse a PEM certificate using the existing crypto_utils.parse_certificate function,
+    suitable for UI display in Monitored Certificates.
+    """
 
+    try:
+        # Leverage the existing parse_certificate function!
+        parsed = crypto_utils.parse_certificate(cert_pem)
+    except Exception as e:
+        raise ValueError(f"Invalid certificate PEM format: {e}")
+
+    # Map Issued To structured attributes to subject string
+    to_attrs = parsed.get("Issued To", {})
+    subject_parts = []
+    if to_attrs.get("Common Name (CN)") != "<Not Part Of Certificate>":
+        subject_parts.append(f"CN={to_attrs['Common Name (CN)']}")
+    if to_attrs.get("Organization (O)") != "<Not Part Of Certificate>":
+        subject_parts.append(f"O={to_attrs['Organization (O)']}")
+    if to_attrs.get("Organizational Unit (OU)") != "<Not Part Of Certificate>":
+        subject_parts.append(f"OU={to_attrs['Organizational Unit (OU)']}")
+    subject_str = ",".join(subject_parts) if subject_parts else "CN=Unknown"
+
+    # Map Issued By structured attributes to issuer string
+    by_attrs = parsed.get("Issued By", {})
+    issuer_parts = []
+    if by_attrs.get("Common Name (CN)") != "<Not Part Of Certificate>":
+        issuer_parts.append(f"CN={by_attrs['Common Name (CN)']}")
+    if by_attrs.get("Organization (O)") != "<Not Part Of Certificate>":
+        issuer_parts.append(f"O={by_attrs['Organization (O)']}")
+    if by_attrs.get("Organizational Unit (OU)") != "<Not Part Of Certificate>":
+        issuer_parts.append(f"OU={by_attrs['Organizational Unit (OU)']}")
+    issuer_str = ",".join(issuer_parts) if issuer_parts else "CN=Unknown"
+
+    serial_hex = parsed.get("Basic Details", {}).get("Serial Number", "Unknown")
+
+    # Re-parse formatted dates using the exact matching format from parse_certificate
+    date_fmt = "%A, %B %d, %Y at %I:%M:%S %p"
+    try:
+        issued_on_str = parsed.get("Validity Period", {}).get("Issued On", "")
+        expires_on_str = parsed.get("Validity Period", {}).get("Expires On", "")
+        not_before = datetime.strptime(issued_on_str, date_fmt)
+        not_after = datetime.strptime(expires_on_str, date_fmt)
+    except Exception as exc:
+        raise ValueError(f"Failed to parse certificate dates: {exc}")
+
+    status = "VALID" if not_after > datetime.utcnow() else "EXPIRED"
+
+    return {
+        "subject": subject_str,
+        "issuer": issuer_str,
+        "serial_number": serial_hex,
+        "valid_from": not_before,
+        "valid_to": not_after,
+        "status": status
+    }
+
+
+@router.post("/monitored-certificates", response_model=schemas.MonitoredCertificateOut)
+def upload_monitored_certificate(
+    req: schemas.MonitoredCertificateCreate,
+    current_user: models.User = Depends(deps.get_current_active_user),
+    db: Session = Depends(deps.get_db)
+) -> Any:
+    """
+    Upload a certificate to monitor its validity.
+    Validates PEM format, parses it on backend, and stores it in database.
+    """
+    try:
+        parsed_fields = parse_monitored_certificate(req.cert_pem)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    monitored_cert = models.MonitoredCertificate(
+        user_id=current_user.id,
+        filename=req.filename,
+        cert_pem=req.cert_pem
+    )
+    db.add(monitored_cert)
+    db.commit()
+    db.refresh(monitored_cert)
+
+    deps.log_activity(
+        db,
+        action="MONITORED_CERTIFICATE_UPLOADED",
+        details=f"Uploaded monitored certificate '{monitored_cert.filename}' (ID: {monitored_cert.id})",
+        user_id=current_user.id
+    )
+
+    # Return output by combining database record fields and dynamically parsed fields
+    return schemas.MonitoredCertificateOut(
+        id=monitored_cert.id,
+        user_id=monitored_cert.user_id,
+        filename=monitored_cert.filename,
+        cert_pem=monitored_cert.cert_pem,
+        created_at=monitored_cert.created_at,
+        **parsed_fields
+    )
+
+
+@router.get("/monitored-certificates", response_model=List[schemas.MonitoredCertificateOut])
+def list_monitored_certificates(
+    current_user: models.User = Depends(deps.get_current_active_user),
+    db: Session = Depends(deps.get_db)
+) -> Any:
+    """
+    List all uploaded monitored certificates for the current user.
+    Dynamic properties (subject, validity, status) are parsed live on demand.
+    """
+    certs = db.query(models.MonitoredCertificate).filter(
+        models.MonitoredCertificate.user_id == current_user.id
+    ).all()
+
+    result = []
+    for cert in certs:
+        try:
+            parsed_fields = parse_monitored_certificate(cert.cert_pem)
+        except Exception:
+            # Fallback values if certificate became unparseable
+            from datetime import datetime
+            parsed_fields = {
+                "subject": "Unknown (Invalid Certificate)",
+                "issuer": "Unknown (Invalid Certificate)",
+                "serial_number": "Unknown",
+                "valid_from": cert.created_at,
+                "valid_to": cert.created_at,
+                "status": "EXPIRED"
+            }
+        
+        result.append(
+            schemas.MonitoredCertificateOut(
+                id=cert.id,
+                user_id=cert.user_id,
+                filename=cert.filename,
+                cert_pem=cert.cert_pem,
+                created_at=cert.created_at,
+                **parsed_fields
+            )
+        )
+    return result

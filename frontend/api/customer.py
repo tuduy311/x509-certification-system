@@ -100,3 +100,24 @@ def get_crl() -> dict:
     Returns: {"crl_pem": str}
     """
     return _get("/api/customer/crl")
+
+
+def get_monitored_certificates() -> list:
+    """
+    GET /api/customer/monitored-certificates
+    Returns: List[MonitoredCertificateOut]
+    """
+    return _get("/api/customer/monitored-certificates")
+
+
+def upload_monitored_certificate(filename: str, cert_pem: str) -> dict:
+    """
+    POST /api/customer/monitored-certificates
+    Body: {"filename": str, "cert_pem": str}
+    Returns: MonitoredCertificateOut dict
+    """
+    return _post("/api/customer/monitored-certificates", json={
+        "filename": filename,
+        "cert_pem": cert_pem
+    })
+

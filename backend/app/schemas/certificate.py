@@ -76,3 +76,27 @@ class ActivityLogOut(BaseModel):
 class CertificateUpload(BaseModel):
     cert_pem: str
 
+
+class MonitoredCertificateCreate(BaseModel):
+    filename: str
+    cert_pem: str
+
+
+class MonitoredCertificateOut(BaseModel):
+    id: int
+    user_id: int
+    filename: str
+    cert_pem: str
+    created_at: datetime
+    # Flat parsed fields
+    subject: str
+    issuer: str
+    serial_number: str
+    valid_from: datetime
+    valid_to: datetime
+    status: str
+
+    class Config:
+        from_attributes = True
+
+

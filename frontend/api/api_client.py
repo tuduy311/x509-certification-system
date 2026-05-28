@@ -10,7 +10,9 @@ from .customer import (
     request_revoke_certificate,
     parse_certificate,
     get_certificate_info,
-    get_crl
+    get_crl,
+    get_monitored_certificates,
+    upload_monitored_certificate
 )
 
 from .admin import (

@@ -8,7 +8,9 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from app.core.config import settings
 
-_BASE_DIR = os.path.dirname(os.path.abspath(settings.ROOT_CA_PATH))
+_CORE_DIR = os.path.dirname(os.path.abspath(__file__))
+_APP_DIR = os.path.dirname(_CORE_DIR)
+_BASE_DIR = os.path.dirname(_APP_DIR)
 
 MANAGEMENT_DIR = os.path.join(_BASE_DIR, "Management")
 

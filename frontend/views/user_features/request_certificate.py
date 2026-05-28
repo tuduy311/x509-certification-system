@@ -265,18 +265,13 @@ def request_certificate():
     with tab2:
         st.subheader("My Certificate Requests")
 
-        col_hdr, col_btn = st.columns([4, 1])
-        with col_btn:
-            if st.button("🔄 Refresh", key="btn_refresh_requests", use_container_width=True):
-                st.session_state.my_requests_cache = None
-
         # Fetch from backend only when cache is empty
         if st.session_state.my_requests_cache is None:
             try:
                 st.session_state.my_requests_cache = api_client.get_my_requests()
                 st.session_state.my_requests_error = None
             except http_requests.ConnectionError:
-                st.session_state.my_requests_error = "❌ Cannot connect to backend."
+                st.session_state.my_requests_error = "Cannot connect to backend."
             except http_requests.HTTPError as e:
                 st.session_state.my_requests_error = f"Backend error: {e}"
 

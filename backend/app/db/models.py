@@ -133,3 +133,13 @@ class TokenBlacklist(Base):
     expires_at = Column(DateTime, nullable=False)
 
 
+class MonitoredCertificate(Base):
+    __tablename__ = "monitored_certificates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    filename = Column(String)
+    cert_pem = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    owner = relationship("User")

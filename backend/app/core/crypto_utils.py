@@ -14,18 +14,19 @@ _BASE_DIR = os.path.dirname(_APP_DIR)
 
 MANAGEMENT_DIR = os.path.join(_BASE_DIR, "Management")
 
+os.makedirs(MANAGEMENT_DIR,  exist_ok=True)
+
 KEY_CA_DIR  = os.path.join(MANAGEMENT_DIR, "key_CA")
 CERT_CA_DIR = os.path.join(MANAGEMENT_DIR, "cert_CA")
 CRL_DIR     = os.path.join(MANAGEMENT_DIR, "crl")
 
-ROOT_KEY_PATH  = os.path.join(KEY_CA_DIR,  "root_ca.key")
-ROOT_CERT_PATH = os.path.join(CERT_CA_DIR, "root_ca.crt")
-CRL_FILE_PATH  = os.path.join(CRL_DIR, "crl.pem")
-
-# Ensure directories exist at import time
 os.makedirs(KEY_CA_DIR,  exist_ok=True)
 os.makedirs(CERT_CA_DIR, exist_ok=True)
 os.makedirs(CRL_DIR,     exist_ok=True)
+
+ROOT_KEY_PATH  = os.path.join(KEY_CA_DIR,  "root_ca.key")
+ROOT_CERT_PATH = os.path.join(CERT_CA_DIR, "root_ca.crt")
+CRL_FILE_PATH  = os.path.join(CRL_DIR, "crl.pem")
 
 def generate_key_pair(algorithm: str | int = "RSA", key_size: int = 2048):
     algo = algorithm.upper()

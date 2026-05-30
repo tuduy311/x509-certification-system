@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
 from styles.dashboard import Dashboard_CSS
 
@@ -19,12 +20,12 @@ def _load_hash_algos():
 
 
 def _load_ca_status():
-    """Fetch CA status from backend once per session (or after a generate action)."""
-    if "ca_status" not in st.session_state:
-        try:
-            st.session_state.ca_status = api_client.get_ca_status()
-        except Exception:
-            st.session_state.ca_status = {"key_exists": False, "cert_exists": False}
+    """Always fetch CA status fresh from backend to reflect actual file existence."""
+    
+    try:
+        st.session_state.ca_status = api_client.get_ca_status()
+    except Exception:
+        st.session_state.ca_status = {"key_exists": False, "cert_exists": False}
 
 
 def generate_root_certificate():
@@ -35,6 +36,8 @@ def generate_root_certificate():
         st.session_state.root_cert_history = []
     if "root_cert_success_msg" not in st.session_state:
         st.session_state.root_cert_success_msg = None
+    if "_show_root_cert_msg" not in st.session_state:
+        st.session_state._show_root_cert_msg = False
 
     # Load hash algos and CA status (cached in session, no re-request on widget changes)
     _load_hash_algos()
@@ -74,7 +77,7 @@ def generate_root_certificate():
             st.error("❌ Root CA key NOT found. Generate the key pair first.")
     with col_s2:
         if cert_ok:
-            st.warning("⚠️ A certificate already exists in `cert_CA/` – generating will overwrite it.")
+            st.warning("⚠️ A certificate already exists in server – generating will overwrite it.")
         else:
             st.info("ℹ️ No certificate yet – fill in the form below and generate one.")
 
@@ -148,7 +151,7 @@ def generate_root_certificate():
             """)
 
         confirm_generate = st.checkbox(
-            "I understand generating a new certificate will overwrite the existing `cert_CA/root_ca.crt`",
+            "I understand that creating a new certificate will overwrite the existing certificate",
             key="rc_confirm"
         )
 
@@ -190,7 +193,10 @@ def generate_root_certificate():
                         f"2. Backup the `key_CA/root_ca.key` file in a secure offline location\n"
                         f"3. Keep the private key confidential – it signs ALL issued certificates"
                     )
+                    st.session_state._show_root_cert_msg = True
 
+                except BackendError:
+                    st.session_state.root_cert_success_msg = None
                 except http_requests.HTTPError as e:
                     if e.response is not None:
                         detail = e.response.json().get("detail", str(e))
@@ -202,9 +208,10 @@ def generate_root_certificate():
                     st.error("❌ Cannot connect to backend.")
                     st.session_state.root_cert_success_msg = None
 
-        # Show persistent success message (stays visible without rerun)
-        if st.session_state.root_cert_success_msg:
+        if st.session_state._show_root_cert_msg and st.session_state.root_cert_success_msg:
             st.success(st.session_state.root_cert_success_msg)
+            st.session_state._show_root_cert_msg = False
+            st.session_state.root_cert_success_msg = None
 
     # ─────────────────────────────── TAB 2 ────────────────────────────────────
     with tab2:

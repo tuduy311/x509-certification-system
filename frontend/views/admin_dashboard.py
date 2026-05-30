@@ -107,7 +107,7 @@ def admin_dashboard():
             st.markdown("""
             <div class="admin-card">
                 <div class="admin-title"> 🔑 Generate Root Key Pair </div>
-                <div class ="admin-content"> Generate RSA/ECC root private and public key pair </div>
+                <div class ="admin-content"> Generate root private and public key pair </div>
             </div>
             """, unsafe_allow_html = True)
             if st.button("Generate Key Pair", use_container_width = True):

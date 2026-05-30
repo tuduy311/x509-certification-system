@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
 from styles.dashboard import Dashboard_CSS
 
@@ -21,12 +22,11 @@ def _load_options():
 
 
 def _load_ca_status():
-    """Fetch CA status from backend once per session (or after a generate action)."""
-    if "ca_status" not in st.session_state:
-        try:
-            st.session_state.ca_status = api_client.get_ca_status()
-        except Exception:
-            st.session_state.ca_status = {"key_exists": False, "cert_exists": False}
+    """Always fetch CA status fresh from backend to reflect actual file existence."""
+    try:
+        st.session_state.ca_status = api_client.get_ca_status()
+    except Exception:
+        st.session_state.ca_status = {"key_exists": False, "cert_exists": False}
 
 
 def generate_root_key_pair():
@@ -37,8 +37,9 @@ def generate_root_key_pair():
         st.session_state.root_key_history = []
     if "root_key_success_msg" not in st.session_state:
         st.session_state.root_key_success_msg = None
+    if "_show_root_key_msg" not in st.session_state:
+        st.session_state._show_root_key_msg = False
 
-    # Load options and CA status (cached in session, no re-request on widget changes)
     _load_options()
     _load_ca_status()
 
@@ -53,8 +54,8 @@ def generate_root_key_pair():
     <div class="admin-card">
         <div class="admin-title">🔑 Generate Root CA Key Pair</div>
         <div class="admin-content">
-            Create a new RSA or ECC private key for the Root Certificate Authority.
-            The key is stored securely on the server inside <code>key_CA/</code> and
+            Create a new private key for the Root Certificate Authority.
+            The key is stored securely on the server inside and
             is <strong>never</strong> transmitted to the browser.
         </div>
     </div>
@@ -62,7 +63,6 @@ def generate_root_key_pair():
 
     st.divider()
 
-    # ── CA Status banner (from cached session state) ──
     status  = st.session_state.ca_status
     key_ok  = status.get("key_exists", False)
     cert_ok = status.get("cert_exists", False)
@@ -70,12 +70,12 @@ def generate_root_key_pair():
     col_s1, col_s2 = st.columns(2)
     with col_s1:
         if key_ok:
-            st.success("🔑 Root CA key already exists on server (`key_CA/root_ca.key`)")
+            st.success("🔑 Root CA key already exists on server")
         else:
             st.warning("⚠️ No Root CA key found – generate one below.")
     with col_s2:
         if cert_ok:
-            st.success("📜 Root CA certificate exists (`cert_CA/root_ca.crt`)")
+            st.success("📜 Root CA certificate exists on server")
         else:
             st.info("ℹ️ No certificate yet – generate it after creating the key.")
 
@@ -181,7 +181,10 @@ def generate_root_key_pair():
                         f"- **Server message:** {record['msg']}\n\n"
                         f"👉 **Next step:** Go to **Generate Root Certificate** to create the CA certificate using this key."
                     )
+                    st.session_state._show_root_key_msg = True
 
+                except BackendError:
+                    st.session_state.root_key_success_msg = None
                 except http_requests.HTTPError as e:
                     detail = e.response.json().get("detail", str(e)) if e.response else str(e)
                     st.error(f"❌ Backend error: {detail}")
@@ -190,9 +193,11 @@ def generate_root_key_pair():
                     st.error("❌ Cannot connect to backend.")
                     st.session_state.root_key_success_msg = None
 
-        # Show persistent success message (stays visible without rerun)
-        if st.session_state.root_key_success_msg:
+        # Show success message only once — cleared on next render
+        if st.session_state._show_root_key_msg and st.session_state.root_key_success_msg:
             st.success(st.session_state.root_key_success_msg)
+            st.session_state._show_root_key_msg = False
+            st.session_state.root_key_success_msg = None
 
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 

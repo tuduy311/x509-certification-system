@@ -14,92 +14,13 @@ def profile():
 
     st.divider()
 
-    st.title("👤 Profile & Settings")
+    st.title("👤 Settings")
     st.markdown("Manage your account information and preferences")
     st.divider()
 
-    username = st.session_state.get("username", "unknown")
-    role = st.session_state.get("role", "user")
-
-    # Initialize editable profile fields in session state
-    if "profile_full_name" not in st.session_state:
-        st.session_state.profile_full_name = username
-    if "profile_email" not in st.session_state:
-        st.session_state.profile_email = f"{username}@example.com"
-    if "profile_org" not in st.session_state:
-        st.session_state.profile_org = "My Organization"
-    if "profile_country" not in st.session_state:
-        st.session_state.profile_country = "Vietnam"
-
-    tab1, tab2, tab3 = st.tabs(["👤 Profile", "🔒 Security", "⚙️ Preferences"])
+    tab1, tab2 = st.tabs(["🔒 Security", "⚙️ Preferences"])
 
     with tab1:
-        st.subheader("User Profile")
-
-        # Profile display card
-        st.markdown(f"""
-        <div style="background-color: #2d3748; border-left: 4px solid #48bb78; border-radius: 5px; padding: 15px; margin: 15px 0;">
-        <div style="font-weight: bold; color: #48bb78; margin-bottom: 10px;">✅ Account Information</div>
-        <div style="color: #e0e0e0; font-size: 14px;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-        <div><strong>Username:</strong> {username}</div>
-        <div><strong>Role:</strong> <span style="background-color: #4299e1; padding: 2px 8px; border-radius: 3px;">{role.upper()}</span></div>
-        <div><strong>Email:</strong> {st.session_state.profile_email}</div>
-        <div><strong>Full Name:</strong> {st.session_state.profile_full_name}</div>
-        <div><strong>Organization:</strong> {st.session_state.profile_org}</div>
-        <div><strong>Country:</strong> {st.session_state.profile_country}</div>
-        </div>
-        </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.divider()
-        st.markdown("**✏️ Edit Profile**")
-        st.info("ℹ️ Profile field changes are saved locally to this session. To update your password, use the Security tab.")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            new_full_name = st.text_input(
-                "Full Name:",
-                value=st.session_state.profile_full_name,
-                key="edit_fullname"
-            )
-            new_org = st.text_input(
-                "Organization:",
-                value=st.session_state.profile_org,
-                key="edit_org"
-            )
-        with col2:
-            new_email = st.text_input(
-                "Email:",
-                value=st.session_state.profile_email,
-                key="edit_email"
-            )
-            new_country = st.text_input(
-                "Country:",
-                value=st.session_state.profile_country,
-                key="edit_country"
-            )
-
-        st.divider()
-
-        if st.button("💾 Save Changes", use_container_width=True, key="save_profile"):
-            st.session_state.profile_full_name = new_full_name
-            st.session_state.profile_email = new_email
-            st.session_state.profile_org = new_org
-            st.session_state.profile_country = new_country
-            st.success("✅ Profile Updated Successfully!")
-
-        st.divider()
-
-        st.markdown("**📊 Account Status**")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write(f"**Session Started:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        with col2:
-            st.write(f"**Status:** 🟢 Active")
-
-    with tab2:
         st.subheader("Security Settings")
 
         # ── Header card ──
@@ -263,7 +184,7 @@ def profile():
 
 
 
-    with tab3:
+    with tab2:
         st.subheader("Preferences")
 
         st.markdown("**🔔 Notifications**")

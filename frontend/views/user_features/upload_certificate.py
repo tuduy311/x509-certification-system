@@ -101,7 +101,6 @@ def upload_certificate():
                         - **Status:** {result.get('status')}
                         """)
                         
-                        # Clear inputs in session state (safely skipped to prevent Streamlit widget mutation errors)
                         pass
                             
                             

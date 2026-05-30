@@ -3,7 +3,35 @@ from datetime import datetime, timedelta
 import pandas as pd
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
+
+# ── Helper loaders ────────────────────────────────────────────────────────────
+
+def _load_hash_algos():
+    """Load hash algorithms from backend once per session."""
+    if "crl_hash_algos" not in st.session_state:
+        try:
+            all_opts = api_client.get_all_options()
+            st.session_state.crl_hash_algos = [h["name"] for h in all_opts["hash_algorithms"]]
+            st.session_state.crl_hash_algos_error = None
+        except Exception as e:
+            st.session_state.crl_hash_algos = ["SHA256", "SHA384", "SHA512"]
+            st.session_state.crl_hash_algos_error = str(e)
+
+
+def _load_system_config():
+    """Load system_config from backend once per session."""
+    if "crl_system_config" not in st.session_state:
+        try:
+            st.session_state.crl_system_config = api_client.get_config()
+            st.session_state.crl_config_error = None
+        except Exception as e:
+            st.session_state.crl_system_config = {}
+            st.session_state.crl_config_error = str(e)
+
+
+# ── Main view ─────────────────────────────────────────────────────────────────
 
 def update_crl():
 
@@ -11,7 +39,11 @@ def update_crl():
     if "generated_crls" not in st.session_state:
         st.session_state.generated_crls = []
 
-    # ── Back button (with top margin to avoid Streamlit toolbar overlap) ──
+    # Load options and config (cached, no re-request on widget changes)
+    _load_hash_algos()
+    _load_system_config()
+
+    # ── Back button ──
     st.markdown("<div style='margin-top:60px'></div>", unsafe_allow_html=True)
     if st.button("← Back to Dashboard"):
         st.session_state.current_feature = None
@@ -53,6 +85,23 @@ def update_crl():
     with tab1:
         st.subheader("Generate New Certificate Revocation List")
 
+        # ── Config source banner ──
+        cfg = st.session_state.crl_system_config
+        if st.session_state.get("crl_config_error"):
+            st.warning(
+                f"⚠️ Could not load system configuration ({st.session_state.crl_config_error}). "
+                "Using built-in defaults."
+            )
+        else:
+            cfg_validity  = cfg.get("crl_lifetime_days", "30")
+            cfg_hash      = cfg.get("hash_algorithm", "SHA256")
+            st.info(
+                f"ℹ️ **System defaults from configuration:** "
+                f"CRL validity = **{cfg_validity} days** · "
+                f"Hash algorithm = **{cfg_hash}**  "
+                f"*(you can override these values below)*"
+            )
+
         st.markdown("**📄 Revoked Certificates to Include**")
 
         if not revoked_certs:
@@ -75,6 +124,16 @@ def update_crl():
 
         st.markdown("**⚙️ CRL Configuration**")
 
+        # ── Resolve defaults from system_config ──
+        default_validity = int(cfg.get("crl_lifetime_days", 30)) if cfg else 30
+
+        default_hash = cfg.get("hash_algorithm", "SHA256") if cfg else "SHA256"
+        hash_options  = st.session_state.crl_hash_algos or ["SHA256", "SHA384", "SHA512"]
+        # Determine index of configured hash; fall back to 0 if not in list
+        default_hash_index = (
+            hash_options.index(default_hash) if default_hash in hash_options else 0
+        )
+
         col1, col2 = st.columns(2)
 
         with col1:
@@ -82,9 +141,10 @@ def update_crl():
                 "CRL Validity Period (days):",
                 min_value=1,
                 max_value=365,
-                value=7,
+                value=min(default_validity, 365),
                 step=1,
-                key="crl_validity_days"
+                key="crl_validity_days",
+                help=f"System default: {default_validity} days (from system configuration)"
             )
 
             st.markdown(f"""
@@ -94,11 +154,15 @@ def update_crl():
             """)
 
         with col2:
+            if st.session_state.get("crl_hash_algos_error"):
+                st.warning(f"⚠️ Could not load hash algorithm list: {st.session_state.crl_hash_algos_error}. Using defaults.")
+
             hash_algorithm = st.selectbox(
                 "Hash Algorithm:",
-                options=["SHA256", "SHA384", "SHA512"],
-                index=0,
-                key="crl_hash_algorithm"
+                options=hash_options,
+                index=default_hash_index,
+                key="crl_hash_algorithm",
+                help=f"System default: {default_hash} (from system configuration)"
             )
 
             st.markdown(f"""
@@ -122,6 +186,22 @@ def update_crl():
             - Revocation Dates
             - CRL Authority Signature
             """)
+
+        # Diff indicator: show when user values differ from system defaults
+        validity_differs = validity_days != default_validity
+        hash_differs     = hash_algorithm != default_hash
+
+        if validity_differs or hash_differs:
+            override_notes = []
+            if validity_differs:
+                override_notes.append(
+                    f"Validity overridden: **{validity_days}** days (system default: {default_validity})"
+                )
+            if hash_differs:
+                override_notes.append(
+                    f"Hash algorithm overridden: **{hash_algorithm}** (system default: {default_hash})"
+                )
+            st.warning("⚠️ **Override detected:** " + " · ".join(override_notes))
 
         st.markdown(f"""
         <div style="background-color: #2d3748; border-left: 4px solid #f6ad55; border-radius: 5px; padding: 15px; margin: 15px 0;">
@@ -164,6 +244,9 @@ def update_crl():
                     }
                     st.session_state.generated_crls.append(new_crl)
 
+                    # Invalidate cached config so next reload picks up any changes
+                    st.session_state.pop("crl_system_config", None)
+
                     st.success(f"""
                     ✅ Certificate Revocation List Generated Successfully!
 
@@ -193,6 +276,8 @@ def update_crl():
                         with col2:
                             st.info("💡 Publish this CRL to your HTTP/LDAP distribution points.")
 
+                except BackendError:
+                    pass  # Error already shown by _handle_http_error
                 except http_requests.HTTPError as e:
                     detail = e.response.json().get("detail", str(e)) if e.response else str(e)
                     st.error(f"❌ Error generating CRL: {detail}")

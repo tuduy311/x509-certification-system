@@ -58,15 +58,15 @@ def user_dashboard():
             if st.button("Request Certificate", use_container_width=True):
                 st.session_state.current_feature = "request_certificate"
                 st.rerun()
-               
+
             st.markdown("""
             <div class="admin-card">
-                <div class="admin-title">⬇️ Download Certificate</div>
-                <div class="admin-content">Download your issued certificates (PEM, DER, PKCS12 formats).</div>
+                <div class="admin-title">🚫 Revoke Certificate</div>
+                <div class="admin-content">Request revocation of an issued certificate.</div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("Download Certificate", use_container_width=True):
-                st.session_state.current_feature = "my_certificates"
+            if st.button("Revoke Certificate", use_container_width=True):
+                st.session_state.current_feature = "revoke_certificate"
                 st.rerun()
                
         with col2:
@@ -78,16 +78,6 @@ def user_dashboard():
             """, unsafe_allow_html=True)
             if st.button("View My Certificates", use_container_width=True):
                 st.session_state.current_feature = "my_certificates"
-                st.rerun()
-              
-            st.markdown("""
-            <div class="admin-card">
-                <div class="admin-title">🚫 Revoke Certificate</div>
-                <div class="admin-content">Request revocation of an issued certificate.</div>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button("Revoke Certificate", use_container_width=True):
-                st.session_state.current_feature = "revoke_certificate"
                 st.rerun()
 
         st.markdown("---")

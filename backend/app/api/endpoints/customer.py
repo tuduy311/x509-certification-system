@@ -4,9 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from cryptography.hazmat.backends import default_backend
-from datetime import datetime
-import os
 import datetime
+import os
 from cryptography import x509 as _x509
 from cryptography.hazmat.backends import default_backend as _backend
 
@@ -374,12 +373,12 @@ def parse_monitored_certificate(cert_pem: str) -> dict:
     try:
         issued_on_str = parsed.get("Validity Period", {}).get("Issued On", "")
         expires_on_str = parsed.get("Validity Period", {}).get("Expires On", "")
-        not_before = datetime.strptime(issued_on_str, date_fmt)
-        not_after = datetime.strptime(expires_on_str, date_fmt)
+        not_before = datetime.datetime.strptime(issued_on_str, date_fmt)
+        not_after = datetime.datetime.strptime(expires_on_str, date_fmt)
     except Exception as exc:
         raise ValueError(f"Failed to parse certificate dates: {exc}")
 
-    status = "VALID" if not_after > datetime.utcnow() else "EXPIRED"
+    status = "VALID" if not_after > datetime.datetime.utcnow() else "EXPIRED"
 
     return {
         "subject": subject_str,

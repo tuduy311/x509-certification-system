@@ -154,12 +154,3 @@ def my_certificates():
                         key=f"dl_cert_{selected_cert['id']}",
                         use_container_width=True,
                     )
-            with col2:
-                if selected_cert["status"] == "approved":
-                    if st.button(
-                        "🔄 Renew Certificate",
-                        key=f"renew_{selected_cert['id']}",
-                        use_container_width=True,
-                    ):
-                        st.session_state.current_feature = "renew_certificate"
-                        st.rerun()

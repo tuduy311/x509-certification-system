@@ -20,7 +20,7 @@ CRL_DIR     = os.path.join(MANAGEMENT_DIR, "crl")
 
 ROOT_KEY_PATH  = os.path.join(KEY_CA_DIR,  "root_ca.key")
 ROOT_CERT_PATH = os.path.join(CERT_CA_DIR, "root_ca.crt")
-CRL_FILE_PATH  = os.path.join(CRL_DIR,     "crl.pem")
+CRL_FILE_PATH  = os.path.join(CRL_DIR, "crl.pem")
 
 # Ensure directories exist at import time
 os.makedirs(KEY_CA_DIR,  exist_ok=True)
@@ -308,7 +308,7 @@ def update_crl_cache(db, validity_days: int = None, hash_alg: str = None) -> str
     from app.db import models
     
     if validity_days is None:
-        cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == "crl_update_days").first()
+        cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == "crl_lifetime_days").first()
         validity_days = int(cfg.value) if cfg else 30
     if hash_alg is None:
         cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == "hash_algorithm").first()

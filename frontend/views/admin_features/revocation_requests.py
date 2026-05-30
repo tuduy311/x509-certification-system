@@ -189,15 +189,4 @@ def revocation_requests():
 
         df_all = pd.DataFrame(all_data) if all_data else pd.DataFrame()
 
-        status_filter = st.multiselect(
-            "Filter by Status:",
-            options=["PENDING", "APPROVED", "REJECTED"],
-            default=["PENDING", "APPROVED", "REJECTED"],
-            key="all_revocation_status_filter"
-        )
-
-        if status_filter and not df_all.empty:
-            df_all = df_all[df_all["Status"].isin(status_filter)]
-
         st.dataframe(df_all, use_container_width=True, hide_index=True)
-        st.info(f"📊 Showing {len(df_all)} of {len(all_requests)} requests")

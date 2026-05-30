@@ -154,7 +154,7 @@ def revoke_certificate():
                 }
                 st.session_state.admin_revoked_certs.append(revocation_record)
                 st.success(
-                    f"✅ Certificate #{selected_cert['id']} revoked successfully!\n\n"
+                    f"Certificate #{selected_cert['id']} revoked successfully!\n\n"
                     f"**Details:**\n"
                     f"- User ID: {selected_cert['user_id']}\n"
                     f"- Serial Number: {selected_cert['serial_number']}\n"

@@ -187,7 +187,7 @@ def admin_renew_certificate(cert_id: int, validity_days: int = 365, hash_alg: st
     })
 
 
-def generate_crl(validity_days: int = 30, hash_alg: str = "SHA256") -> dict:
+def generate_crl(validity_days: int = 365, hash_alg: str = "SHA256") -> dict:
     """
     POST /api/admin/generate-crl?validity_days=...&hash_alg=...
     Returns: {"crl_pem": str}

@@ -123,10 +123,6 @@ def search_crl():
             else:
                 st.warning("Certificate information could not be loaded.")
 
-            if st.button("🔄 Re-parse", key=f"reparse_{selected_cert['id']}"):
-                st.session_state.pop(info_key, None)
-                st.rerun()
-
     # ═══ TAB 3 — about CRL ════════════════════════════════════════════════════
     with tab3:
         st.subheader("CRL Information")

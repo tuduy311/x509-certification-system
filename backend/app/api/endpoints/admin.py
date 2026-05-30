@@ -331,7 +331,6 @@ def approve_revocation_request(
         
     return cert
 
-# =========================================================================
 @router.post("/revocation-requests/{req_id}/reject", response_model=schemas.RevocationRequestOut)
 def reject_revocation_request(
     req_id: int,
@@ -398,7 +397,6 @@ def renew_certificate(
     db.commit()
     db.refresh(new_cert)
     
-    # Auto update CRL cache since the old cert is revoked
     try:
         crypto_utils.update_crl_cache(db)
     except Exception as exc:
@@ -406,7 +404,6 @@ def renew_certificate(
         
     deps.log_activity(db, action="CERTIFICATE_RENEWAL_APPROVED", details=f"Old CertID: {cert.id} (revoked), New Serial: {serial_num}", user_id=current_user.id)
     return new_cert
-# =========================================================================
 
 @router.post("/generate-crl")
 def generate_crl_endpoint(
@@ -416,7 +413,7 @@ def generate_crl_endpoint(
     db: Session = Depends(deps.get_db)
 ) -> Any:
     """Generate CRL from revoked certificates."""
-    validity_days = validity_days or int(get_config_value(db, "crl_update_days", "30"))
+    validity_days = validity_days or int(get_config_value(db, "crl_lifetime_days", "30"))
     hash_alg = hash_alg or get_config_value(db, "hash_algorithm", "SHA256")
     
     revoked_certs = db.query(models.Certificate).filter(models.Certificate.status == models.CertStatus.REVOKED).all()

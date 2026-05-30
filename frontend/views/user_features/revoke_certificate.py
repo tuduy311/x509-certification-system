@@ -105,19 +105,6 @@ def revoke_certificate():
 
             st.divider()
 
-            # Warning
-            st.markdown(f"""
-            <div style="background-color: #744210; border-left: 4px solid #ed8936; border-radius: 5px; padding: 15px; margin: 15px 0;">
-            <div style="font-weight: bold; color: #ed8936; margin-bottom: 10px;">⚠️ Warning: This Action Is Permanent</div>
-            <div style="color: #e0e0e0; font-size: 14px;">
-            Once this certificate is revoked, it cannot be used for any operations. This action is irreversible.
-            The certificate will be listed on the Certificate Revocation List (CRL).
-            </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            st.divider()
-
             # Summary
             st.markdown(f"""
             <div style="background-color: #2d3748; border-left: 4px solid #f6ad55; border-radius: 5px; padding: 15px; margin: 15px 0;">

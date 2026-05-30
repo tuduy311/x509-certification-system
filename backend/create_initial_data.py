@@ -9,7 +9,6 @@ models.Base.metadata.create_all(bind=engine)
 
 
 def init_db(db: Session) -> None:
-    # 1. Seed Admin user
     admin_username = settings.ADMIN_USERNAME
     admin_password = settings.ADMIN_PASSWORD
     
@@ -25,13 +24,12 @@ def init_db(db: Session) -> None:
         db.refresh(user)
         print(f"Admin user '{admin_username}' created successfully")
 
-    # 2. Seed System Configurations with default_value
     default_configs = {
         "default_validity_days": "365",
         "asymmetric_algorithm": "RSA",
         "hash_algorithm": "SHA256",
         "key_length": "2048",
-        "crl_update_days": "30",
+        "crl_lifetime_days": "365",
         "max_cert_validity_days": "3650",
         "min_key_length": "2048",
         "enable_ecc": "true",
@@ -49,7 +47,6 @@ def init_db(db: Session) -> None:
     db.commit()
     print("System configurations seeded successfully")
 
-    # 3. Seed Asymmetric Algorithms
     asym_algos = ["RSA", "ECC"]
     for name in asym_algos:
         alg = db.query(models.AsymmetricAlgorithm).filter(models.AsymmetricAlgorithm.name == name).first()
@@ -59,7 +56,6 @@ def init_db(db: Session) -> None:
     db.commit()
     print("Asymmetric algorithms seeded successfully")
 
-    # 4. Seed Hash Algorithms
     hash_algos = ["SHA256", "SHA384", "SHA512"]
     for name in hash_algos:
         alg = db.query(models.HashAlgorithm).filter(models.HashAlgorithm.name == name).first()
@@ -69,7 +65,6 @@ def init_db(db: Session) -> None:
     db.commit()
     print("Hash algorithms seeded successfully")
 
-    # 5. Seed Key Lengths
     key_lengths = [
         {"value": 2048, "algo_name": "RSA"},
         {"value": 3072, "algo_name": "RSA"},
@@ -89,7 +84,6 @@ def init_db(db: Session) -> None:
     db.commit()
     print("Key lengths seeded successfully")
 
-    # 6. Seed Validity Options
     validity_options = [90, 365, 730, 3650]
     for val in validity_options:
         opt = db.query(models.ValidityOption).filter(models.ValidityOption.value == val).first()

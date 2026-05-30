@@ -138,18 +138,18 @@ def certificate_standards():
             elif "default_validity_days" in st.session_state.config_changed:
                 del st.session_state.config_changed["default_validity_days"]
 
-            curr_crl = int(config.get("crl_update_days", 30))
+            curr_crl = int(config.get("crl_lifetime_days", 30))
             crl_update = st.number_input(
-                "CRL Update Interval (days)",
+                "CRL Lifespan (days)",
                 min_value=1, max_value=365,
                 value=curr_crl,
                 step=1,
                 key=f"crl_update_input_{ctr}"
             )
             if crl_update != curr_crl:
-                st.session_state.config_changed["crl_update_days"] = str(crl_update)
-            elif "crl_update_days" in st.session_state.config_changed:
-                del st.session_state.config_changed["crl_update_days"]
+                st.session_state.config_changed["crl_lifetime_days"] = str(crl_update)
+            elif "crl_lifetime_days" in st.session_state.config_changed:
+                del st.session_state.config_changed["crl_lifetime_days"]
 
     # ── TAB 2: Encryption ──
     with tab2:

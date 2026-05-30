@@ -5,6 +5,10 @@ from sqlalchemy.orm import Session
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from cryptography.hazmat.backends import default_backend
 from datetime import datetime
+import os
+import datetime
+from cryptography import x509 as _x509
+from cryptography.hazmat.backends import default_backend as _backend
 
 from app.api import deps
 from app.db import models
@@ -156,6 +160,7 @@ def list_my_requests(
     """
     return db.query(models.CertificateRequest).filter(models.CertificateRequest.user_id == current_user.id).all()
 
+
 @router.get("/my-certificates", response_model=List[schemas.CertificateOut])
 def list_my_certificates(
     current_user: models.User = Depends(deps.get_current_active_user),
@@ -207,6 +212,7 @@ def download_certificate(
         headers={"Content-Disposition": f"attachment; filename=certificate_{cert.serial_number}.crt"}
     )
 
+
 @router.post("/certificates/{cert_id}/request-revoke", response_model=schemas.RevocationRequestOut)
 def request_revoke_certificate(
     cert_id: int,
@@ -234,6 +240,7 @@ def request_revoke_certificate(
     db.commit()
     db.refresh(req)
     return req
+
 
 @router.post("/parse-certificate")
 def parse_uploaded_certificate(
@@ -280,38 +287,48 @@ def get_certificate_info(
 @router.get("/crl")
 def get_crl(db: Session = Depends(deps.get_db)) -> Any:
     """
-    Get the latest Certificate Revocation List (CRL) for the system.
-    Returns CRL PEM content directly from the file.
-    Updates the file cache dynamically if expired (configured in system DB) or missing.
-    """
-    import os
-    import time
+    Get the current Certificate Revocation List (CRL) for the system.
 
-    # 1. Fetch crl_update_days from DB
-    cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == "crl_update_days").first()
-    crl_update_days = int(cfg.value) if cfg else 30
+    1. If the CRL file does not exist → 404.
+    2. If the CRL file exists but has expired (next_update <= now) → regenerate it
+       using the current revoked certificates list, then return the new CRL.
+    3. If the CRL is still valid → return it directly from file.
+
+    CRL lifetime is controlled by 'crl_lifetime_days' in system_config.
+    Periodic regeneration is handled by the backend scheduler; this only acts
+    as a safety net so clients never receive an already-expired CRL.
+    """
 
     crl_path = crypto_utils.CRL_FILE_PATH
-    need_regenerate = False
 
-    # 2. Check if file exists and mtime check
     if not os.path.exists(crl_path):
-        need_regenerate = True
-    else:
-        # Check mtime
-        mtime = os.path.getmtime(crl_path)
-        age_seconds = time.time() - mtime
-        age_days = age_seconds / 86400.0
-        if age_days >= crl_update_days:
-            need_regenerate = True
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "CRL file not found. The CA may not have been initialized yet. "
+                "Please contact the administrator."
+            )
+        )
 
     try:
-        if need_regenerate:
-            crl_pem = crypto_utils.update_crl_cache(db, validity_days=crl_update_days)
-        else:
-            with open(crl_path, "r", encoding="utf-8") as f:
-                crl_pem = f.read()
+        with open(crl_path, "r", encoding="utf-8") as f:
+            crl_pem = f.read()
+
+        crl_obj = _x509.load_pem_x509_crl(crl_pem.encode("utf-8"), _backend())
+        try:
+            next_update = crl_obj.next_update_utc.replace(tzinfo=None)
+        except AttributeError:
+            next_update = crl_obj.next_update
+
+        now = datetime.datetime.utcnow()
+
+        if next_update <= now:
+            crl_pem = crypto_utils.update_crl_cache(db)
+
         return {"crl_pem": crl_pem}
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail="Could not retrieve CRL: " + str(e))
 

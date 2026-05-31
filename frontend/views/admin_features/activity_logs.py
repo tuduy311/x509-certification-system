@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
 def activity_logs():
 
@@ -14,11 +15,7 @@ def activity_logs():
     # ── Fetch logs from backend ──
     try:
         all_logs = api_client.get_activity_logs()
-    except http_requests.ConnectionError:
-        st.error("❌ Cannot connect to backend.")
-        all_logs = []
-    except http_requests.HTTPError as e:
-        st.error(f"Backend error: {e}")
+    except (BackendError, http_requests.ConnectionError):
         all_logs = []
 
     # Normalize: backend returns dicts

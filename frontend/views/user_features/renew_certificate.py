@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime, timedelta
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
 
 def renew_certificate():
@@ -24,11 +25,7 @@ def renew_certificate():
     # ── Fetch user's certificates from backend ──
     try:
         all_certs = api_client.get_my_certificates()
-    except http_requests.ConnectionError:
-        st.error("❌ Cannot connect to backend.")
-        all_certs = []
-    except http_requests.HTTPError as e:
-        st.error(f"Backend error: {e}")
+    except (BackendError, http_requests.ConnectionError):
         all_certs = []
 
     now = datetime.utcnow()

@@ -3,6 +3,7 @@ import requests
 
 from styles.auth_css import AUTH_CSS, LEFT_PANEL
 import api.api_client as api_client
+from api.helpers import BackendError
 
 
 def auth_page():
@@ -66,7 +67,7 @@ def auth_page():
 
                 username = st.text_input(
                     "Username",
-                    placeholder="Ten_dang_nhap"
+                    placeholder="username"
                 )
 
                 password = st.text_input(
@@ -107,10 +108,8 @@ def auth_page():
                         except requests.HTTPError as e:
                             if e.response is not None and e.response.status_code == 400:
                                 st.error("Tên đăng nhập hoặc mật khẩu không đúng.")
-                            else:
-                                st.error(f"Lỗi server: {e}")
-                        except requests.ConnectionError:
-                            st.error("❌ Không thể kết nối đến backend. Hãy đảm bảo server đang chạy tại http://localhost:8000")
+                        except (BackendError, requests.ConnectionError):
+                            pass
 
                 st.markdown("""
                     <div style="text-align:center;margin-top:16px;font-size:13px;color:#9ca3af;">
@@ -161,7 +160,5 @@ def auth_page():
                             if e.response is not None and e.response.status_code == 400:
                                 error_detail = e.response.json().get("detail")
                                 st.error(error_detail)
-                            else:
-                                st.error(f"Lỗi server: {e}")
-                        except requests.ConnectionError:
-                            st.error("❌ Không thể kết nối đến backend. Hãy đảm bảo server đang chạy.")
+                        except (BackendError, requests.ConnectionError):
+                            pass

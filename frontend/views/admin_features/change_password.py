@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
 from styles.dashboard import Dashboard_CSS
 
@@ -111,27 +112,8 @@ def change_password():
                         f"⚠️ Please log out and log in again with your new password.",
                         icon="✅"
                     )
-                except http_requests.HTTPError as e:
-                    if e.response is not None:
-                        if e.response.status_code == 422:
-                            try:
-                                validation_errors = e.response.json().get("detail", [])
-                                for err in validation_errors:
-                                    field = err.get("loc", ["body"])[-1]
-                                    msg = err.get("msg", "Invalid format.")
-                                    st.error(f"⚠️ Validation Error ({field}): {msg}")
-                            except Exception:
-                                st.error("❌ Input data format is not accepted by the server.")
-                        else:
-                            try:
-                                error_detail = e.response.json().get("detail", "Bad Request")
-                                st.error(f"❌ {error_detail}")
-                            except Exception:
-                                st.error(f"❌ Error {e.response.status_code}: {e.response.text}")
-                    else:
-                        st.error(f"❌ Error: {str(e)}")
-                except http_requests.ConnectionError:
-                    st.error("❌ Cannot connect to backend.")
+                except (BackendError, http_requests.ConnectionError):
+                    pass
 
     with col2:
         st.subheader("Security Requirements")

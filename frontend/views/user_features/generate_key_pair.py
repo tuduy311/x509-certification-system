@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
 # Key pair is generated entirely on the client side
 from crypto import generate_key_pair as _crypto_generate_key_pair, serialize_keys
@@ -127,13 +128,8 @@ def generate_key_pair():
                         "timestamp": datetime.now()
                     }
 
-                except http_requests.ConnectionError:
-                    st.error("❌ Cannot connect to backend.")
-                except http_requests.HTTPError as e:
-                    detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                    st.error(f"❌ Error: {detail}")
-                except Exception as e:
-                    st.error(f"❌ Key generation failed: {e}")
+                except (BackendError, http_requests.ConnectionError):
+                    pass
 
         # Render the result block if a key was generated in this session
         if st.session_state.last_generated_key is not None:
@@ -188,17 +184,16 @@ def generate_key_pair():
                 st.code(last_key["private_key"], language="text")
 
     with tab2:
-        st.subheader("My Saved Key Pairs (From Database)")
+        st.subheader("My Saved Key Pairs")
 
         # Query real user key pairs from DB
         try:
             my_keys = api_client.get_my_keys()
-        except Exception as e:
-            st.error(f"Failed to load keys from database: {e}")
+        except BackendError:
             my_keys = []
 
         if not my_keys:
-            st.info("No key pairs found in your database. Use the 'Generate New Key' tab to create one.")
+            st.info("No key pairs was found on the server. Use the 'Generate New Key' tab to create one.")
         else:
             col1, col2, col3 = st.columns(3)
             with col1:

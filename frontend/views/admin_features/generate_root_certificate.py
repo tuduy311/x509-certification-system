@@ -195,17 +195,7 @@ def generate_root_certificate():
                     )
                     st.session_state._show_root_cert_msg = True
 
-                except BackendError:
-                    st.session_state.root_cert_success_msg = None
-                except http_requests.HTTPError as e:
-                    if e.response is not None:
-                        detail = e.response.json().get("detail", str(e))
-                        st.error(f"❌ {detail}")
-                    else:
-                        st.error(f"❌ Error: {str(e)}")
-                    st.session_state.root_cert_success_msg = None
-                except http_requests.ConnectionError:
-                    st.error("❌ Cannot connect to backend.")
+                except (BackendError, http_requests.ConnectionError):
                     st.session_state.root_cert_success_msg = None
 
         if st.session_state._show_root_cert_msg and st.session_state.root_cert_success_msg:

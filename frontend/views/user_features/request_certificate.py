@@ -1,6 +1,7 @@
 import streamlit as st
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
 # CSR is built entirely on the client – private key never leaves this process
 from crypto import build_csr
@@ -234,15 +235,7 @@ def request_certificate():
                     st.session_state.my_requests_cache = None
                     # Clear the CSR after successful submission
                     st.session_state.generated_csr = ""
-                except http_requests.HTTPError as e:
-                    if e.response is not None:
-                        detail = e.response.json().get("detail", str(e))
-                        st.error(f"❌ {detail}")
-                    else:
-                        st.error(f"❌ Error: {str(e)}")
-                    st.session_state.submit_success = None
-                except http_requests.ConnectionError:
-                    st.error("❌ Cannot connect to backend.")
+                except (BackendError, http_requests.ConnectionError):
                     st.session_state.submit_success = None
 
         if st.session_state.submit_success:
@@ -270,13 +263,10 @@ def request_certificate():
             try:
                 st.session_state.my_requests_cache = api_client.get_my_requests()
                 st.session_state.my_requests_error = None
-            except http_requests.ConnectionError:
-                st.session_state.my_requests_error = "Cannot connect to backend."
-            except http_requests.HTTPError as e:
-                st.session_state.my_requests_error = f"Backend error: {e}"
+            except (BackendError, http_requests.ConnectionError):
+                st.session_state.my_requests_error = True
 
         if st.session_state.my_requests_error:
-            st.error(st.session_state.my_requests_error)
             return
 
         user_requests = st.session_state.my_requests_cache or []

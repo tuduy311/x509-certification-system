@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
 
 REVOCATION_REASONS = [
@@ -42,11 +43,7 @@ def revoke_certificate():
         # ── Fetch user's active certificates ──
         try:
             all_certificates = api_client.get_my_certificates()
-        except http_requests.ConnectionError:
-            st.error("❌ Cannot connect to backend.")
-            return
-        except http_requests.HTTPError as e:
-            st.error(f"Backend error: {e}")
+        except (BackendError, http_requests.ConnectionError):
             return
 
         active_certs = [c for c in all_certificates if c["status"] == "approved"]
@@ -153,11 +150,8 @@ def revoke_certificate():
 
                     Your revocation request has been submitted for admin review.
                     """)
-                except http_requests.HTTPError as e:
-                    detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                    st.error(f"❌ Error: {detail}")
-                except http_requests.ConnectionError:
-                    st.error("❌ Cannot connect to backend.")
+                except (BackendError, http_requests.ConnectionError):
+                    pass
 
     with tab2:
         st.subheader("Revocation Request History (This Session)")

@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 from views._cert_display import render_certificate
 
 
@@ -21,17 +22,11 @@ def search_crl():
 
     # ── Fetch CRL PEM ─────────────────────────────────────────────────────────
     crl_pem  = None
-    crl_error = None
     try:
         result   = api_client.get_crl()
         crl_pem  = result.get("crl_pem", "")
-    except http_requests.ConnectionError:
-        crl_error = "❌ Cannot connect to backend."
-    except http_requests.HTTPError as e:
-        if e.response is not None and e.response.status_code == 404:
-            crl_error = "⚠️ No CRL has been generated yet. Ask an admin to generate the CRL first."
-        else:
-            crl_error = f"Backend error: {e}"
+    except (BackendError, http_requests.ConnectionError):
+        pass
 
     # ── Fetch REVOKED certificates (system-wide, no admin required) ───────────
     revoked_certs = []
@@ -46,9 +41,7 @@ def search_crl():
     with tab1:
         st.subheader("Certificate Revocation List (PEM)")
 
-        if crl_error:
-            st.warning(crl_error)
-        elif crl_pem:
+        if crl_pem:
             st.markdown("**📄 CRL (PEM format):**")
             st.markdown(f"""
             <div style="background-color: #1a1a1a; color: #e0e0e0; padding: 15px; border-radius: 5px;
@@ -110,11 +103,7 @@ def search_crl():
                         st.session_state[info_key] = api_client.get_certificate_info(
                             selected_cert["id"]
                         )
-                    except http_requests.HTTPError as e:
-                        st.error(f"❌ Could not parse certificate: {e}")
-                        st.session_state[info_key] = None
-                    except http_requests.ConnectionError:
-                        st.error("❌ Cannot connect to backend.")
+                    except (BackendError, http_requests.ConnectionError):
                         st.session_state[info_key] = None
 
             info = st.session_state.get(info_key)

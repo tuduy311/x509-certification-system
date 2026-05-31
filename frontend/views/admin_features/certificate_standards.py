@@ -3,6 +3,7 @@ from datetime import datetime
 import json
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
 def _load_config() -> dict:
     """Fetch config from backend and return as dict[str,str]."""
@@ -339,10 +340,8 @@ def certificate_standards():
                 
                 st.warning("⚠️ Configuration reset to default values.")
                 st.rerun()
-            except http_requests.ConnectionError:
-                st.error("❌ Cannot connect to backend.")
-            except http_requests.HTTPError as e:
-                st.error(f"Error resetting config: {e}")
+            except (BackendError, http_requests.ConnectionError):
+                pass
 
     with col2:
         if st.button("💾 Save Configuration", use_container_width=True, type="primary"):
@@ -368,11 +367,8 @@ def certificate_standards():
                         icon="✅"
                     )
                     st.rerun()
-                except http_requests.HTTPError as e:
-                    detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                    st.error(f"❌ Failed to save configuration: {detail}")
-                except http_requests.ConnectionError:
-                    st.error("❌ Cannot connect to backend. Is the server running?")
+                except (BackendError, http_requests.ConnectionError):
+                    pass
             else:
                 st.info("No changes to save.")
 

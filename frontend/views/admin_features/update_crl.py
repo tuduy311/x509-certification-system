@@ -58,11 +58,7 @@ def update_crl():
     # ── Fetch revoked certs from backend ──
     try:
         all_certs = api_client.get_all_certificates()
-    except http_requests.ConnectionError:
-        st.error("❌ Cannot connect to backend.")
-        all_certs = []
-    except http_requests.HTTPError as e:
-        st.error(f"Backend error: {e}")
+    except (BackendError, http_requests.ConnectionError):
         all_certs = []
 
     revoked_certs = [c for c in all_certs if c["status"] == "revoked"]
@@ -276,14 +272,8 @@ def update_crl():
                         with col2:
                             st.info("💡 Publish this CRL to your HTTP/LDAP distribution points.")
 
-                except BackendError:
-                    pass  # Error already shown by _handle_http_error
-                except http_requests.HTTPError as e:
-                    detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                    st.error(f"❌ Error generating CRL: {detail}")
-                    st.info("💡 Make sure the Root CA has been set up first (Generate Root Certificate).")
-                except http_requests.ConnectionError:
-                    st.error("❌ Cannot connect to backend.")
+                except (BackendError, http_requests.ConnectionError):
+                    pass
 
     with tab2:
         st.subheader("CRL Generation History")

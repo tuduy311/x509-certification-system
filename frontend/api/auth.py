@@ -1,6 +1,6 @@
 import requests
 import streamlit as st
-from .helpers import _get, _post, _put, BASE_URL
+from .helpers import _get, _post, _put, BASE_URL, _handle_http_error, BackendError
 
 
 
@@ -9,14 +9,26 @@ def login(username: str, password: str) -> dict:
     POST /api/auth/login
     Body: {"username": ..., "password": ...}
     Returns: {"access_token": str, "token_type": "bearer"}
+    Raises BackendError (with st.error already shown) on HTTP errors,
+    or re-raises requests.HTTPError for 400 so the caller can show a
+    custom "wrong credentials" message.
     """
-    resp = requests.post(
-        f"{BASE_URL}/api/auth/login",
-        json={"username": username, "password": password},
-        timeout=10
-    )
-    resp.raise_for_status()
-    return resp.json()
+    try:
+        resp = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": username, "password": password},
+            timeout=10
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 400:
+            raise
+        
+        _handle_http_error(e)
+    except requests.exceptions.ConnectionError:
+        st.error("❌ Không thể kết nối đến backend. Hãy đảm bảo server đang chạy tại http://localhost:8000")
+        raise
 
 
 def register(username: str, password: str) -> dict:
@@ -24,14 +36,26 @@ def register(username: str, password: str) -> dict:
     POST /api/auth/register
     Body: {"username": ..., "password": ...}
     Returns: UserOut dict
+    Raises BackendError (with st.error already shown) on HTTP errors,
+    or re-raises requests.HTTPError for 400 so the caller can show a
+    custom validation message.
     """
-    resp = requests.post(
-        f"{BASE_URL}/api/auth/register",
-        json={"username": username, "password": password},
-        timeout=10
-    )
-    resp.raise_for_status()
-    return resp.json()
+    try:
+        resp = requests.post(
+            f"{BASE_URL}/api/auth/register",
+            json={"username": username, "password": password},
+            timeout=10
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 400:
+            raise
+
+        _handle_http_error(e)
+    except requests.exceptions.ConnectionError:
+        st.error("❌ Không thể kết nối đến backend. Hãy đảm bảo server đang chạy.")
+        raise
 
 
 def change_password(old_password: str, new_password: str, confirm_new_password: str) -> dict:

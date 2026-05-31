@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
 
 def approve_requests():
@@ -29,11 +30,7 @@ def approve_requests():
     try:
         st.session_state.admin_requests_cache = api_client.get_all_requests()
         st.session_state.admin_certificates_cache = api_client.get_all_certificates()
-    except http_requests.ConnectionError:
-        st.error("❌ Cannot connect to backend. Is the server running at http://localhost:8000?")
-        return
-    except http_requests.HTTPError as e:
-        st.error(f"Backend error: {e}")
+    except (BackendError, http_requests.ConnectionError):
         return
 
     all_requests = st.session_state.admin_requests_cache
@@ -157,11 +154,8 @@ def approve_requests():
                 f"**Valid Until:** {str(result.get('valid_to', ''))[:10]}\n"
                 f"**Hash Algorithm:** {hash_algorithm}"
             )
-        except http_requests.HTTPError as e:
-            detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-            st.error(f"❌ Error: {detail}")
-        except http_requests.ConnectionError:
-            st.error("❌ Cannot connect to backend.")
+        except (BackendError, http_requests.ConnectionError):
+            pass
 
     st.divider()
 

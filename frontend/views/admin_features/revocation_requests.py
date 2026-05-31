@@ -3,6 +3,7 @@ from datetime import datetime
 import pandas as pd
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
 
 def revocation_requests():
@@ -22,11 +23,7 @@ def revocation_requests():
     # ── Fetch from backend ──
     try:
         all_requests = api_client.get_revocation_requests()
-    except http_requests.ConnectionError:
-        st.error("❌ Cannot connect to backend.")
-        return
-    except http_requests.HTTPError as e:
-        st.error(f"Backend error: {e}")
+    except (BackendError, http_requests.ConnectionError):
         return
 
     pending_requests = [r for r in all_requests if r["status"] == "pending"]
@@ -146,9 +143,8 @@ def revocation_requests():
                         Certificate has been revoked. Regenerate the CRL to publish the update.
                         """)
                         st.rerun()
-                    except http_requests.HTTPError as e:
-                        detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                        st.error(f"Error: {detail}")
+                    except (BackendError, http_requests.ConnectionError):
+                        pass
 
             with col2:
                 if st.button(
@@ -167,9 +163,8 @@ def revocation_requests():
                         Certificate remains active.
                         """)
                         st.rerun()
-                    except http_requests.HTTPError as e:
-                        detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                        st.error(f"Error: {detail}")
+                    except (BackendError, http_requests.ConnectionError):
+                        pass
 
     # ── TAB 2: All Requests ──
     with tab2:

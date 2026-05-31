@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
 def issued_certificates():
 
@@ -21,11 +22,7 @@ def issued_certificates():
     try:
         all_certificates = api_client.get_all_certificates()
         revocation_requests = api_client.get_revocation_requests()
-    except http_requests.ConnectionError:
-        st.error("❌ Cannot connect to backend.")
-        return
-    except http_requests.HTTPError as e:
-        st.error(f"Backend error: {e}")
+    except (BackendError, http_requests.ConnectionError):
         return
 
     # Stats
@@ -144,9 +141,8 @@ def issued_certificates():
                             api_client.admin_revoke_certificate(selected_cert["id"])
                             st.warning(f"Certificate #{selected_cert['id']} has been revoked.")
                             st.rerun()
-                        except http_requests.HTTPError as e:
-                            detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                            st.error(f"Error: {detail}")
+                        except (BackendError, http_requests.ConnectionError):
+                            pass
 
     # ── TAB 3: Revocation Requests ──
     with tab3:
@@ -193,15 +189,13 @@ def issued_certificates():
                                     api_client.approve_revocation_request(rev_req["id"])
                                     st.success(f"Revocation request #{rev_req['id']} approved – certificate revoked.")
                                     st.rerun()
-                                except http_requests.HTTPError as e:
-                                    detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                                    st.error(f"Error: {detail}")
+                                except (BackendError, http_requests.ConnectionError):
+                                    pass
                         with col2:
                             if st.button("❌ Reject", key=f"reject_revoke_{rev_req['id']}"):
                                 try:
                                     api_client.reject_revocation_request(rev_req["id"])
                                     st.info(f"Revocation request #{rev_req['id']} rejected – certificate remains active.")
                                     st.rerun()
-                                except http_requests.HTTPError as e:
-                                    detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                                    st.error(f"Error: {detail}")
+                                except (BackendError, http_requests.ConnectionError):
+                                    pass

@@ -3,6 +3,7 @@ from datetime import datetime
 import pandas as pd
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 from views._cert_display import render_certificate
 
 
@@ -21,11 +22,7 @@ def my_certificates():
     # ── Fetch certificate list ────────────────────────────────────────────────
     try:
         all_certs = api_client.get_my_certificates()
-    except http_requests.ConnectionError:
-        st.error("❌ Cannot connect to backend.")
-        return
-    except http_requests.HTTPError as e:
-        st.error(f"Backend error: {e}")
+    except (BackendError, http_requests.ConnectionError):
         return
 
     # ── Statistics ────────────────────────────────────────────────────────────
@@ -125,11 +122,7 @@ def my_certificates():
                         st.session_state[info_key] = api_client.get_certificate_info(
                             selected_cert["id"]
                         )
-                    except http_requests.HTTPError as e:
-                        st.error(f"❌ Could not parse certificate: {e}")
-                        st.session_state[info_key] = None
-                    except http_requests.ConnectionError:
-                        st.error("❌ Cannot connect to backend.")
+                    except (BackendError, http_requests.ConnectionError):
                         st.session_state[info_key] = None
 
             info = st.session_state.get(info_key)

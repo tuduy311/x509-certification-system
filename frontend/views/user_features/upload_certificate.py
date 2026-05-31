@@ -3,6 +3,7 @@ from datetime import datetime
 import pandas as pd
 import requests as http_requests
 import api.api_client as api_client
+from api.helpers import BackendError
 
 
 def upload_certificate():
@@ -104,14 +105,8 @@ def upload_certificate():
                         pass
                             
                             
-                    except http_requests.HTTPError as e:
-                        if e.response is not None:
-                            detail = e.response.json().get("detail", str(e))
-                            st.error(f"❌ Upload failed: {detail}")
-                        else:
-                            st.error(f"❌ Upload failed: {e}")
-                    except http_requests.ConnectionError:
-                        st.error("❌ Cannot connect to backend server.")
+                    except (BackendError, http_requests.ConnectionError):
+                        pass
 
     # ═══════════════════════════════════════════════════════════════════════
     with tab2:
@@ -121,10 +116,8 @@ def upload_certificate():
         uploaded_certs = []
         try:
             uploaded_certs = api_client.get_monitored_certificates()
-        except http_requests.ConnectionError:
-            st.error("❌ Cannot connect to backend server to load certificates.")
-        except Exception as e:
-            st.error(f"❌ Error loading certificates: {e}")
+        except (BackendError, http_requests.ConnectionError):
+            pass
 
         if not uploaded_certs:
             st.info("No uploaded certificates yet. Start by uploading a certificate.")

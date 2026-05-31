@@ -183,14 +183,7 @@ def generate_root_key_pair():
                     )
                     st.session_state._show_root_key_msg = True
 
-                except BackendError:
-                    st.session_state.root_key_success_msg = None
-                except http_requests.HTTPError as e:
-                    detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                    st.error(f"❌ Backend error: {detail}")
-                    st.session_state.root_key_success_msg = None
-                except http_requests.ConnectionError:
-                    st.error("❌ Cannot connect to backend.")
+                except (BackendError, http_requests.ConnectionError):
                     st.session_state.root_key_success_msg = None
 
         # Show success message only once — cleared on next render

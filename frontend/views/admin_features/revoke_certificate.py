@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime
 import api.api_client as api_client
 import requests as http_requests
+from api.helpers import BackendError
 
 
 def revoke_certificate():
@@ -25,11 +26,7 @@ def revoke_certificate():
     # ── Fetch certificates from backend ──
     try:
         all_certificates = api_client.get_all_certificates()
-    except http_requests.ConnectionError:
-        st.error("❌ Cannot connect to backend.")
-        return
-    except http_requests.HTTPError as e:
-        st.error(f"Backend error: {e}")
+    except (BackendError, http_requests.ConnectionError):
         return
 
     # Filter active certificates only (status == "approved" in DB)
@@ -167,11 +164,8 @@ def revoke_certificate():
                     "Generate a new CRL to publish the update.",
                     icon="ℹ️"
                 )
-            except http_requests.HTTPError as e:
-                detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                st.error(f"❌ Error: {detail}")
-            except http_requests.ConnectionError:
-                st.error("❌ Cannot connect to backend.")
+            except (BackendError, http_requests.ConnectionError):
+                pass
 
     st.divider()
 
